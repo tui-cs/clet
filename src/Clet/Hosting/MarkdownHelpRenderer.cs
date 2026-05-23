@@ -1,17 +1,14 @@
 using System.Reflection;
 using System.Text;
-using Terminal.Gui.App;
 using Terminal.Gui.Cli;
 using Terminal.Gui.Drawing;
-using Terminal.Gui.Drivers;
-using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
 namespace Clet;
 
 /// <summary>
 /// Renders Markdown content as ANSI to a <see cref="TextWriter"/> (print mode).
-/// Adapted from mdv's RenderMarkdown() print pipeline.
+/// Uses <see cref="Markdown.RenderToAnsi"/> for headless rendering.
 /// </summary>
 internal static class MarkdownHelpRenderer
 {
@@ -22,18 +19,9 @@ internal static class MarkdownHelpRenderer
     {
         // Sanitize input markdown to remove terminal escape sequences from untrusted content
         markdown = TerminalEscapeSanitizer.Sanitize (markdown)!;
-        // The ANSI driver emits Unicode box-drawing glyphs (U+2500 range) plus the
-        // ASCII-art logo. On Windows, Console.OutputEncoding defaults to the OEM code
-        // page; Windows Terminal then interprets those bytes as broken UTF-8 and
-        // substitutes the replacement glyph. Force UTF-8 for the duration of this
-        // render and restore the prior encoding on exit. Only mutate the console
-        // when output was originally Console.Out and stdout isn't redirected —
-        // captured TextWriters (tests) and piped output go through their own encoders.
-        //
-        // Note: assigning to Console.OutputEncoding REPLACES Console.Out with a fresh
-        // StreamWriter under the new encoding. The `output` parameter still points at
-        // the *old* writer (captured in Program.Main before this method ran), so we
-        // re-fetch Console.Out after the swap and write through that.
+
+        // Force UTF-8 on Windows where Console.OutputEncoding defaults to OEM code page.
+        // Only mutate when output is Console.Out and stdout isn't redirected.
         Encoding? previousEncoding = null;
         TextWriter target = output;
 
@@ -60,58 +48,15 @@ internal static class MarkdownHelpRenderer
             width = 80;
         }
 
-        int height;
-
         try
         {
-            height = Console.WindowHeight;
-        }
-        catch
-        {
-            height = 0;
-        }
-
-        if (height <= 0)
-        {
-            height = 24;
-        }
-
-        // Prevent the ANSI driver from trying to read/write real terminal size or capabilities,
-        // since we're just emitting ANSI and exiting immediately.
-        Environment.SetEnvironmentVariable ("DisableRealDriverIO", "1");
-        IApplication app = Application.Create ();
-        app.Init (DriverRegistry.Names.ANSI);
-
-        try
-        {
-            app.Driver?.SetScreenSize (width, height);
-
             Markdown markdownView = new ()
             {
-                App = app,
                 SyntaxHighlighter = new TextMateSyntaxHighlighter (),
                 UseThemeBackground = false,
-                ShowCopyButtons = false,
-                Width = Dim.Fill (),
-                Height = Dim.Fill (),
-                Text = markdown,
             };
 
-            // Layout to get natural content height
-            markdownView.SetRelativeLayout (app.Screen.Size);
-            markdownView.Layout ();
-
-            // Resize to the full content height but keep the terminal width
-            int contentHeight = markdownView.GetContentHeight ();
-            app.Driver?.SetScreenSize (width, contentHeight);
-            markdownView.SetRelativeLayout (app.Screen.Size);
-            markdownView.Frame = app.Screen with { X = 0, Y = 0 };
-            markdownView.Layout ();
-
-            app.Driver?.ClearContents ();
-            markdownView.Draw ();
-
-            string rendered = app.Driver?.ToAnsi () ?? string.Empty;
+            string rendered = markdownView.RenderToAnsi (markdown, width);
 
             // Final pass: strip any user-payload escape sequences that survived through TG rendering
             // while preserving the renderer's own SGR sequences.
@@ -120,8 +65,6 @@ internal static class MarkdownHelpRenderer
         }
         finally
         {
-            app.Dispose ();
-
             if (previousEncoding is not null)
             {
                 Console.OutputEncoding = previousEncoding;

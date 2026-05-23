@@ -12,7 +12,7 @@ public class CliHostTests
 
         CliHost host = new (o => o.ApplicationName = "testapp");
 
-        int exitCode = await host.RunAsync ([], stdout: stdout, stderr: stderr);
+        int exitCode = await host.RunAsync ([], TestContext.Current.CancellationToken, stdout, stderr);
 
         Assert.Equal (ExitCodes.Ok, exitCode);
         Assert.Contains ("Commands:", stdout.ToString ());
@@ -30,7 +30,7 @@ public class CliHostTests
             o.Version = "1.2.3";
         });
 
-        int exitCode = await host.RunAsync (["--version"], stdout: stdout, stderr: stderr);
+        int exitCode = await host.RunAsync (["--version"], TestContext.Current.CancellationToken, stdout, stderr);
 
         Assert.Equal (ExitCodes.Ok, exitCode);
         Assert.Contains ("testapp 1.2.3", stdout.ToString ());
@@ -44,7 +44,7 @@ public class CliHostTests
 
         CliHost host = new (o => o.ApplicationName = "testapp");
 
-        int exitCode = await host.RunAsync (["nope"], stdout: stdout, stderr: stderr);
+        int exitCode = await host.RunAsync (["nope"], TestContext.Current.CancellationToken, stdout, stderr);
 
         Assert.Equal (ExitCodes.UsageError, exitCode);
         Assert.Contains ("unknown command", stderr.ToString ());
@@ -63,7 +63,7 @@ public class CliHostTests
         });
         host.Registry.Register (new StubCommand ("demo", ["demo", "d"]));
 
-        int exitCode = await host.RunAsync (["--opencli"], stdout: stdout, stderr: stderr);
+        int exitCode = await host.RunAsync (["--opencli"], TestContext.Current.CancellationToken, stdout, stderr);
 
         Assert.Equal (ExitCodes.Ok, exitCode);
         string output = stdout.ToString ();
@@ -80,7 +80,7 @@ public class CliHostTests
         CliHost host = new (o => o.ApplicationName = "testapp");
         host.Registry.Register (new StubCommand ("demo", ["demo"]));
 
-        int exitCode = await host.RunAsync (["demo", "--help"], stdout: stdout, stderr: stderr);
+        int exitCode = await host.RunAsync (["demo", "--help"], TestContext.Current.CancellationToken, stdout, stderr);
 
         Assert.Equal (ExitCodes.Ok, exitCode);
         Assert.Contains ("Stub command: demo", stdout.ToString ());
@@ -95,7 +95,7 @@ public class CliHostTests
         CliHost host = new (o => o.ApplicationName = "testapp");
         host.Registry.Register (new StubCommand ("demo", ["demo"]));
 
-        int exitCode = await host.RunAsync (["demo", "--unknown", "val"], stdout: stdout, stderr: stderr);
+        int exitCode = await host.RunAsync (["demo", "--unknown", "val"], TestContext.Current.CancellationToken, stdout, stderr);
 
         Assert.Equal (ExitCodes.UsageError, exitCode);
         Assert.Contains ("unknown option", stderr.ToString ());
@@ -122,7 +122,7 @@ public class CliHostTests
         // command receives them (command captures options in RunAsync before throwing).
         int exitCode = await host.RunAsync (
             ["capture", "--allow-file", "/tmp", "--no-browse", "--json"],
-            stdout: stdout, stderr: stderr);
+            TestContext.Current.CancellationToken, stdout, stderr);
 
         // The command will return Ok and we can verify from its captured options
         Assert.Equal (ExitCodes.Ok, exitCode);
