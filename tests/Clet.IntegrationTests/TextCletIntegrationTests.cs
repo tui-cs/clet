@@ -1,5 +1,6 @@
 using Terminal.Gui.App;
 using Xunit;
+using Terminal.Gui.Cli;
 
 namespace Clet.IntegrationTests;
 
@@ -12,14 +13,14 @@ public class TextCletIntegrationTests
         app.Init ("ansi");
 
         TextClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
         await cts.CancelAsync ();
 
-        CletRunResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Cancelled, result.Status);
+        Assert.Equal (CommandStatus.Cancelled, result.Status);
         Assert.Null (result.Value);
     }
 
@@ -31,13 +32,13 @@ public class TextCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         TextClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 
     [Fact]
@@ -48,13 +49,13 @@ public class TextCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         TextClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<string?> result = await clet.RunAsync (app, "hello", options, cts.Token);
+        CommandResult<string?> result = await clet.RunAsync (app, "hello", options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 
     [Fact]
@@ -65,13 +66,13 @@ public class TextCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         TextClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<string?> result = await clet.RunAsync (app, "line1\nline2", options, cts.Token);
+        CommandResult<string?> result = await clet.RunAsync (app, "line1\nline2", options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 
     [Fact]
@@ -82,13 +83,13 @@ public class TextCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         TextClet clet = new ();
-        CletRunOptions options = new () { Rows = 10 };
+        CommandRunOptions options = new () { Rows = 10 };
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 }
 

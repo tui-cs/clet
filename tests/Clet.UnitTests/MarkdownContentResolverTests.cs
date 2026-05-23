@@ -1,3 +1,4 @@
+using Terminal.Gui.Cli;
 using Xunit;
 
 namespace Clet.UnitTests;
@@ -7,7 +8,7 @@ public class MarkdownContentResolverTests
     [Fact]
     public void Resolve_InlineContent_ReturnsContent ()
     {
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         MarkdownContentResolver.ResolveResult result = MarkdownContentResolver.Resolve ("# Hello", options, stdinReader: null);
 
@@ -19,7 +20,7 @@ public class MarkdownContentResolverTests
     [Fact]
     public void Resolve_InlineContent_TakesPriorityOverStdin ()
     {
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
         using StringReader stdin = new ("stdin content");
 
         MarkdownContentResolver.ResolveResult result = MarkdownContentResolver.Resolve ("# Inline", options, stdin);
@@ -31,7 +32,7 @@ public class MarkdownContentResolverTests
     [Fact]
     public void Resolve_Stdin_ReturnsContent ()
     {
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
         using StringReader stdin = new ("# From Stdin");
 
         MarkdownContentResolver.ResolveResult result = MarkdownContentResolver.Resolve (null, options, stdin);
@@ -44,7 +45,7 @@ public class MarkdownContentResolverTests
     [Fact]
     public void Resolve_EmptyStdin_ReturnsError ()
     {
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
         using StringReader stdin = new ("");
 
         MarkdownContentResolver.ResolveResult result = MarkdownContentResolver.Resolve (null, options, stdin);
@@ -56,7 +57,7 @@ public class MarkdownContentResolverTests
     [Fact]
     public void Resolve_NoSource_ReturnsError ()
     {
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         MarkdownContentResolver.ResolveResult result = MarkdownContentResolver.Resolve (null, options, stdinReader: null);
 
@@ -76,8 +77,12 @@ public class MarkdownContentResolverTests
             string file = Path.Combine (tempDir, "test.md");
             File.WriteAllText (file, "# Test File");
 
-            // Use AllowedFiles to bypass CWD confinement — avoids process-global CWD race
-            CletRunOptions options = new () { Arguments = [file], AllowedFiles = [tempDir] };
+            // Use allow-file extension to bypass CWD confinement — avoids process-global CWD race
+            CommandRunOptions options = new ()
+            {
+                Arguments = [file],
+                Extensions = new Dictionary<string, IReadOnlyList<string>> { ["allow-file"] = new List<string> { tempDir } },
+            };
 
             MarkdownContentResolver.ResolveResult result = MarkdownContentResolver.Resolve (null, options, stdinReader: null);
 
@@ -94,7 +99,7 @@ public class MarkdownContentResolverTests
     [Fact]
     public void Resolve_FileArgs_NonexistentFile_ReturnsError ()
     {
-        CletRunOptions options = new () { Arguments = ["/nonexistent/file.md"] };
+        CommandRunOptions options = new () { Arguments = ["/nonexistent/file.md"] };
 
         MarkdownContentResolver.ResolveResult result = MarkdownContentResolver.Resolve (null, options, stdinReader: null);
 
@@ -112,7 +117,11 @@ public class MarkdownContentResolverTests
             string file = Path.Combine (tempDir, "priority.md");
             File.WriteAllText (file, "# From File");
 
-            CletRunOptions options = new () { Arguments = [file], AllowedFiles = [tempDir] };
+            CommandRunOptions options = new ()
+            {
+                Arguments = [file],
+                Extensions = new Dictionary<string, IReadOnlyList<string>> { ["allow-file"] = new List<string> { tempDir } },
+            };
 
             MarkdownContentResolver.ResolveResult result = MarkdownContentResolver.Resolve ("# Inline", options, stdinReader: null);
 

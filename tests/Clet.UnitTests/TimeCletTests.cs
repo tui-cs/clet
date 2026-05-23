@@ -1,3 +1,4 @@
+using Terminal.Gui.Cli;
 using Xunit;
 
 namespace Clet.UnitTests;
@@ -17,7 +18,7 @@ public class TimeCletTests
     {
         TimeClet clet = new ();
 
-        Assert.Equal (CletKind.Input, clet.Kind);
+        Assert.Equal (CommandKind.Input, clet.Kind);
     }
 
     [Fact]
@@ -55,7 +56,7 @@ public class TimeCletTests
     [Fact]
     public void AcceptsPositionalArgs_IsFalse ()
     {
-        IClet clet = new TimeClet ();
+        ICliCommand clet = new TimeClet ();
 
         Assert.False (clet.AcceptsPositionalArgs);
     }

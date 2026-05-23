@@ -1,3 +1,4 @@
+using Terminal.Gui.Cli;
 using Xunit;
 
 namespace Clet.UnitTests;
@@ -17,7 +18,7 @@ public class DecimalCletTests
     {
         DecimalClet clet = new ();
 
-        Assert.Equal (CletKind.Input, clet.Kind);
+        Assert.Equal (CommandKind.Input, clet.Kind);
     }
 
     [Fact]
@@ -65,7 +66,7 @@ public class DecimalCletTests
     [Fact]
     public void AcceptsPositionalArgs_IsFalse ()
     {
-        IClet clet = new DecimalClet ();
+        ICliCommand clet = new DecimalClet ();
 
         Assert.False (clet.AcceptsPositionalArgs);
     }

@@ -1,3 +1,4 @@
+using Terminal.Gui.Cli;
 using Xunit;
 
 namespace Clet.UnitTests;
@@ -17,7 +18,7 @@ public class IntCletTests
     {
         IntClet clet = new ();
 
-        Assert.Equal (CletKind.Input, clet.Kind);
+        Assert.Equal (CommandKind.Input, clet.Kind);
     }
 
     [Fact]
@@ -57,7 +58,7 @@ public class IntCletTests
     [Fact]
     public void AcceptsPositionalArgs_IsFalse ()
     {
-        IClet clet = new IntClet ();
+        ICliCommand clet = new IntClet ();
 
         Assert.False (clet.AcceptsPositionalArgs);
     }
@@ -70,7 +71,7 @@ public class IntCletTests
     public void TryValidateInitial_ValidatesIntString (string initial, bool expected)
     {
         IntClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         Assert.Equal (expected, clet.TryValidateInitial (initial, options));
     }

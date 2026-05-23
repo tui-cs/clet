@@ -3,6 +3,7 @@ using System.Reflection;
 using Terminal.Gui.App;
 using Terminal.Gui.Views;
 using Xunit;
+using Terminal.Gui.Cli;
 
 namespace Clet.IntegrationTests;
 
@@ -15,14 +16,14 @@ public class MarkdownCletIntegrationTests
         app.Init ("ansi");
 
         MarkdownClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
         await cts.CancelAsync ();
 
-        CletRunResult result = await clet.RunAsync (app, "# Test", options, cts.Token);
+        CommandResult result = await clet.RunAsync (app, "# Test", options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Cancelled, result.Status);
+        Assert.Equal (CommandStatus.Cancelled, result.Status);
     }
 
     [Fact]
@@ -33,13 +34,13 @@ public class MarkdownCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         MarkdownClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult result = await clet.RunAsync (app, "# Hello\n\nThis is **Markdown**.", options, cts.Token);
+        CommandResult result = await clet.RunAsync (app, "# Hello\n\nThis is **Markdown**.", options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 
     [Fact]
@@ -49,13 +50,13 @@ public class MarkdownCletIntegrationTests
         app.Init ("ansi");
 
         MarkdownClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Error, result.Status);
+        Assert.Equal (CommandStatus.Error, result.Status);
         Assert.Equal ("io", result.ErrorCode);
     }
 
@@ -66,16 +67,16 @@ public class MarkdownCletIntegrationTests
         app.Init ("ansi");
 
         MarkdownClet clet = new ();
-        CletRunOptions options = new ()
+        CommandRunOptions options = new ()
         {
             Arguments = ["/nonexistent/path/to/file.md"],
         };
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Error, result.Status);
+        Assert.Equal (CommandStatus.Error, result.Status);
         Assert.Equal ("io", result.ErrorCode);
     }
 
@@ -94,16 +95,16 @@ public class MarkdownCletIntegrationTests
             app.StopAfterFirstIteration = true;
 
             MarkdownClet clet = new ();
-            CletRunOptions options = new ()
+            CommandRunOptions options = new ()
             {
                 Arguments = [tempFile],
             };
 
             using CancellationTokenSource cts = new ();
 
-            CletRunResult result = await clet.RunAsync (app, null, options, cts.Token);
+            CommandResult result = await clet.RunAsync (app, null, options, cts.Token);
 
-            Assert.Equal (CletRunStatus.Ok, result.Status);
+            Assert.Equal (CommandStatus.Ok, result.Status);
         }
         finally
         {
@@ -132,12 +133,12 @@ public class MarkdownCletIntegrationTests
         int childCountBefore = GetChildProcessCount (pid);
 
         MarkdownClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
         using CancellationTokenSource cts = new ();
 
-        CletRunResult result = await clet.RunAsync (app, markdown, options, cts.Token);
+        CommandResult result = await clet.RunAsync (app, markdown, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
 
         // Assert no child processes were spawned (no Process.Start for links)
         int childCountAfter = GetChildProcessCount (pid);
@@ -162,12 +163,12 @@ public class MarkdownCletIntegrationTests
         int childCountBefore = GetChildProcessCount (pid);
 
         MarkdownClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
         using CancellationTokenSource cts = new ();
 
-        CletRunResult result = await clet.RunAsync (app, markdown, options, cts.Token);
+        CommandResult result = await clet.RunAsync (app, markdown, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
 
         int childCountAfter = GetChildProcessCount (pid);
         Assert.Equal (childCountBefore, childCountAfter);
@@ -226,13 +227,19 @@ public class MarkdownCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         MarkdownClet clet = new ();
-        CletRunOptions options = new () { NoBrowse = true };
+        CommandRunOptions options = new ()
+        {
+            Extensions = new Dictionary<string, IReadOnlyList<string>>
+            {
+                ["no-browse"] = new List<string> { "" },
+            },
+        };
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult result = await clet.RunAsync (app, "# Hello\n\nThis is **Markdown**.", options, cts.Token);
+        CommandResult result = await clet.RunAsync (app, "# Hello\n\nThis is **Markdown**.", options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 
     [Fact]
@@ -252,16 +259,16 @@ public class MarkdownCletIntegrationTests
             app.StopAfterFirstIteration = true;
 
             MarkdownClet clet = new ();
-            CletRunOptions options = new ()
+            CommandRunOptions options = new ()
             {
                 Arguments = [tempFile],
             };
 
             using CancellationTokenSource cts = new ();
 
-            CletRunResult result = await clet.RunAsync (app, null, options, cts.Token);
+            CommandResult result = await clet.RunAsync (app, null, options, cts.Token);
 
-            Assert.Equal (CletRunStatus.Ok, result.Status);
+            Assert.Equal (CommandStatus.Ok, result.Status);
         }
         finally
         {

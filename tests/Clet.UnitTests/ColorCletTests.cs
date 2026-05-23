@@ -1,3 +1,4 @@
+using Terminal.Gui.Cli;
 using Xunit;
 
 namespace Clet.UnitTests;
@@ -17,7 +18,7 @@ public class ColorCletTests
     {
         ColorClet clet = new ();
 
-        Assert.Equal (CletKind.Input, clet.Kind);
+        Assert.Equal (CommandKind.Input, clet.Kind);
     }
 
     [Fact]
@@ -55,7 +56,7 @@ public class ColorCletTests
     [Fact]
     public void AcceptsPositionalArgs_IsFalse ()
     {
-        IClet clet = new ColorClet ();
+        ICliCommand clet = new ColorClet ();
 
         Assert.False (clet.AcceptsPositionalArgs);
     }
@@ -69,7 +70,7 @@ public class ColorCletTests
     public void TryValidateInitial_ValidatesColorString (string initial, bool expected)
     {
         ColorClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         Assert.Equal (expected, clet.TryValidateInitial (initial, options));
     }

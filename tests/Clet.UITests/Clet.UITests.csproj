@@ -21,6 +21,7 @@
 
     <ItemGroup>
         <ProjectReference Include="../../src/Clet/Clet.csproj" />
+        <ProjectReference Include="../../src/Terminal.Gui.Cli/Terminal.Gui.Cli.csproj" />
     </ItemGroup>
 
     <!-- Goldens travel with the test binary so AssertMatchesGolden can find them at runtime. -->

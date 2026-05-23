@@ -1,5 +1,6 @@
 using Terminal.Gui.App;
 using Xunit;
+using Terminal.Gui.Cli;
 
 namespace Clet.IntegrationTests;
 
@@ -12,14 +13,14 @@ public class PickDirectoryCletIntegrationTests
         app.Init ("ansi");
 
         PickDirectoryClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
         await cts.CancelAsync ();
 
-        CletRunResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Cancelled, result.Status);
+        Assert.Equal (CommandStatus.Cancelled, result.Status);
         Assert.Null (result.Value);
     }
 
@@ -31,13 +32,13 @@ public class PickDirectoryCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         PickDirectoryClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.True (result.Status == CletRunStatus.Ok || result.Status == CletRunStatus.Cancelled);
+        Assert.True (result.Status == CommandStatus.Ok || result.Status == CommandStatus.Cancelled);
     }
 }
 
