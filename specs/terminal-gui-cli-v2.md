@@ -4,7 +4,7 @@
 
 ## 0. Repo Identity
 
-`gui-cs/Terminal.Gui.cli` is a new gui-cs library repo for the NuGet package `Terminal.Gui.Cli`. Before writing library code, scaffold the repo by cloning the structure and maintenance model of `gui-cs/Editor` (the Terminal.Gui.Editor repo):
+`gui-cs/Terminal.Gui.cli` is a new gui-cs library repo for the NuGet package `Terminal.Gui.Cli`. The repo slug intentionally uses lowercase `cli`; the package, assembly, and namespace use Pascal-case `Cli`. Before writing library code, scaffold the repo by cloning the structure and maintenance model of `gui-cs/Editor` (the Terminal.Gui.Editor repo):
 
 - `develop` is the integration branch; `main` is the stable release branch.
 - Copy and adapt `specs/constitution.md`; it is the highest-authority engineering document.
@@ -55,6 +55,8 @@ Many Terminal.Gui apps need the same hosting layer: parse command-line args, res
 | C6 | Commands never call `Environment.Exit`; return `CommandResult`. |
 | C7 | Schema v1 is append-only within library major version 1.x. |
 | C8 | Zero warnings in Debug and Release. |
+
+The constitution must also document two narrow file-layout exceptions from the proven API: `CommandResult` and `CommandResult<T>` live together in `CommandResult.cs`, and `ICliCommand<TValue>` lives in `ICliCommandGeneric.cs` because generic type syntax cannot be represented directly in a portable filename.
 
 ## 4. Public API Surface
 
@@ -520,7 +522,7 @@ public sealed class AgentGuideCommand : IViewerCommand
 }
 ```
 
-`HelpCommand` uses `MarkdownRenderer` for ANSI output and a Terminal.Gui markdown viewer for TUI mode. [TG-PENDING] The TUI renderer depends on Terminal.Gui's markdown View API. `AgentGuideCommand` is headless: it returns the guide markdown as the command value so plain output prints the text and `--json` wraps it in the envelope.
+`HelpCommand` uses `MarkdownRenderer` for ANSI output and a Terminal.Gui markdown viewer for TUI mode. [TG-PENDING: Markdown] The TUI renderer depends on the Terminal.Gui markdown APIs described in §13. `AgentGuideCommand` is headless: it returns the guide markdown as the command value so plain output prints the text and `--json` wraps it in the envelope.
 
 ### 4.8 Output and JSON
 
@@ -633,7 +635,7 @@ public static class MarkdownRenderer
 }
 ```
 
-[TG-PENDING] `MarkdownRenderer` wraps Terminal.Gui's markdown-to-ANSI API. If the TG API is named `Markdown.RenderToAnsi`, this method is a thin pass-through plus `TerminalEscapeSanitizer.SanitizeRenderedOutput`.
+[TG-PENDING: Markdown] `MarkdownRenderer` wraps the Terminal.Gui markdown-to-ANSI API described in §13. If the TG API is named `Markdown.RenderToAnsi`, this method is a thin pass-through plus `TerminalEscapeSanitizer.SanitizeRenderedOutput`.
 
 ### 4.10 InputCommandRunner
 
@@ -857,7 +859,7 @@ src/
       CommandOptionDescriptor.cs
       CommandResult.cs
       ICliCommand.cs
-      ICliCommandGeneric.cs
+      ICliCommandGeneric.cs       (contains ICliCommand<TValue>)
       IViewerCommand.cs
       ICommandRegistry.cs
       CommandRunOptions.cs
@@ -938,3 +940,9 @@ Versioning follows Editor: base `<Version>` in `Directory.Build.props`; develop 
 | Logging abstraction | Consumers may add logging around their commands. |
 | Environment-variable option fallback or short-option bundling | Not required for proven API; keep parser small. |
 | Owning consumer config files | Consumers set `ConfigurationManager.AppName`; library only enables/falls back during dispatch. |
+
+## 13. External Terminal.Gui Dependencies
+
+| Marker | Dependency | Required by | Acceptance criteria | Fallback |
+|--------|------------|-------------|---------------------|----------|
+| `[TG-PENDING: Markdown]` | Public Terminal.Gui markdown-to-ANSI rendering API and markdown View suitable for help display | `MarkdownRenderer`, `HelpCommand` | A pinned `TerminalGuiVersion` exposes stable APIs that render markdown to ANSI and display markdown interactively without private reflection. | If interactive markdown View is unavailable, `HelpCommand` may use a read-only text View with ANSI/plain markdown content; if ANSI rendering changes name, `MarkdownRenderer` adapts internally without changing public API. |
