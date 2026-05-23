@@ -12,10 +12,7 @@ internal sealed class ConfirmClet : ICliCommand<bool?>
     public CommandKind Kind => CommandKind.Input;
     public Type ResultType => typeof (bool);
 
-    public IReadOnlyList<CommandOptionDescriptor> Options =>
-    [
-        new ("prompt", "p", typeof (string), "Custom prompt text displayed as the title.", false, null),
-    ];
+    public IReadOnlyList<CommandOptionDescriptor> Options => [];
 
     public bool TryValidateInitial (string initial, CommandRunOptions options)
         => string.Equals (initial, "true", StringComparison.OrdinalIgnoreCase)
@@ -49,16 +46,13 @@ internal sealed class ConfirmClet : ICliCommand<bool?>
             }
         }
 
-        // --prompt option overrides --title for the window title
-        string effectiveTitle = options.CommandOptions.TryGetValue ("prompt", out string? promptValue)
-            ? promptValue
-            : "Confirm (Enter to accept, Esc to cancel)";
+        string defaultTitle = "Confirm (Enter to accept, Esc to cancel)";
 
         RunnableWrapper<OptionSelector, int?> wrapper = new (selector);
 
         return await InputCletRunner.RunAsync<OptionSelector, int?, bool?> (
             app, wrapper, options,
-            effectiveTitle,
+            defaultTitle,
             cancellationToken,
             result =>
             {

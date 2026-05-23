@@ -152,7 +152,7 @@ public sealed class ArgParser
                 continue;
             }
 
-            if (optionName is "--title" or "-t")
+            if (optionName is "--title" or "-t" or "--prompt" or "-p")
             {
                 string? value = inlineValue ?? ConsumeNextValue (args, ref i, command);
 
@@ -423,7 +423,7 @@ public sealed class ArgParser
 
         if (token is "--json" or "-j" or "--fullscreen" or "-f" or "--cat"
             or "--timeout" or "--initial" or "-i" or "--title" or "-t"
-            or "--output" or "-o" or "--rows" or "-r" or "--opencli")
+            or "--prompt" or "-p" or "--output" or "-o" or "--rows" or "-r" or "--opencli")
         {
             return true;
         }

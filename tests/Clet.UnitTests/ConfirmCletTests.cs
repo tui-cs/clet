@@ -46,13 +46,11 @@ public class ConfirmCletTests
     }
 
     [Fact]
-    public void Options_ContainsPrompt ()
+    public void Options_IsEmpty ()
     {
         ConfirmClet clet = new ();
 
-        Assert.Single (clet.Options);
-        Assert.Equal ("prompt", clet.Options[0].Name);
-        Assert.False (clet.Options[0].Required);
+        Assert.Empty (clet.Options);
     }
 
     [Fact]

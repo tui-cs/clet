@@ -172,9 +172,9 @@ Revisit when download numbers show users hitting Gatekeeper/SmartScreen friction
 
 ## D-014: `--title` is a built-in CLI flag, not a per-clet option (Active)
 
-**Context.** Every input clet renders its `RunnableWrapper`/`OpenDialog` with a `Title` and falls back to a per-clet default ("Select an option…", "Enter a number…", etc.). All 14 clets honor `CletRunOptions.Title` if set. The CLI parser, however, had no way to populate it — `--title` was being routed into the per-clet `--<opt>` bucket where most clets ignored it.
+**Context.** Every input clet renders its `RunnableWrapper`/`OpenDialog` with a `Title` and falls back to a per-clet default ("Select an option…", "Enter a number…", etc.). All 14 clets honor `CletRunOptions.Title` if set. The CLI parser, however, had no way to populate it — `--title` was being routed into the per-clet `--<opt>` bucket where most clets ignored it. Additionally, `ConfirmClet` had a per-clet `--prompt` option that overrode `--title`, making the two flags behave inconsistently across clets.
 
-**Decision.** `--title <text>` is parsed at the host level (`CommandLineRoot.DispatchAlias`) alongside `--initial`, `--json`, `--timeout`, `--fullscreen`, and stored as `CletRunOptions.Title`. Individual clets do **not** declare `title` in their `Options` list — adding it 14 times would be churn and the per-clet help would falsely imply each clet handles it differently.
+**Decision.** `--title <text>` (and its alias `--prompt <text>`) is parsed at the host level (`CommandLineRoot.DispatchAlias`) alongside `--initial`, `--json`, `--timeout`, `--fullscreen`, and stored as `CletRunOptions.Title`. `--prompt` / `-p` is a synonym for `--title` / `-t` — both set the same value. Individual clets do **not** declare `title` or `prompt` in their `Options` list — adding it 14 times would be churn and the per-clet help would falsely imply each clet handles it differently.
 
 **Status.** Active. Listed in root help (§4.7).
 

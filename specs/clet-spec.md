@@ -256,7 +256,7 @@ See `src/Clet/Hosting/Program.cs`. The host creates a `CancellationTokenSource`,
 ### 4.7 CLI surface
 
 ```
-clet <alias> [positional...] [--initial <value>] [--title <text>] [--json] [--timeout 30s] [--fullscreen] [--cat] [--no-browse] [--rows <n>] [--output <path>] [--<opt> <value>]...
+clet <alias> [positional...] [--initial <value>] [--title|--prompt <text>] [--json] [--timeout 30s] [--fullscreen] [--cat] [--no-browse] [--rows <n>] [--output <path>] [--<opt> <value>]...
 clet list [--json]
 clet help <alias>
 clet --help
@@ -273,7 +273,7 @@ clet --version
   ╚═╝╩═╝╚═╝ ╩
 ```
 
-**Built-in flags.** `--initial`, `--title`, `--json`, `--timeout`, `--fullscreen`, `--cat`, `--no-browse`, `--rows`, and `--output` are parsed at the host level and apply to every clet. Anything else of the form `--<name> <value>` is validated against the dispatched clet's option descriptors and then forwarded as a clet-specific option (see each clet's `clet help <alias>`). Unknown options are rejected with a usage error (exit 2) instead of consuming the next token as a value. Bare positional tokens are forwarded as `CletRunOptions.Arguments` for clets that consume them (e.g. `select`, `multi-select`, `md`); clets that do not consume positional args reject them with a usage error (exit 2) before the clet runs. See [D-025](decisions.md) for the `AcceptsPositionalArgs` design and [D-014](decisions.md) for why `--title` is a host flag.
+**Built-in flags.** `--initial`, `--title` (alias `--prompt`), `--json`, `--timeout`, `--fullscreen`, `--cat`, `--no-browse`, `--rows`, and `--output` are parsed at the host level and apply to every clet. Anything else of the form `--<name> <value>` is validated against the dispatched clet's option descriptors and then forwarded as a clet-specific option (see each clet's `clet help <alias>`). Unknown options are rejected with a usage error (exit 2) instead of consuming the next token as a value. Bare positional tokens are forwarded as `CletRunOptions.Arguments` for clets that consume them (e.g. `select`, `multi-select`, `md`); clets that do not consume positional args reject them with a usage error (exit 2) before the clet runs. See [D-025](decisions.md) for the `AcceptsPositionalArgs` design and [D-014](decisions.md) for why `--title` is a host flag.
 
 **`--cat` (non-interactive rendering).** When `--cat` is passed to a viewer clet (currently `md`), content is rendered as ANSI-formatted text directly to stdout — no alt-screen, no interactive session. Useful for piping (`clet md --cat README.md | less -R`), CI logs, and AI agents. Content is resolved from file arguments, `--initial`, or stdin, same as the normal viewer path. If no content is available, exits with usage error (exit 2). See [D-027](decisions.md).
 

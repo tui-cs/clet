@@ -14,7 +14,7 @@ Works for humans and AI agents alike.
 | `text`, `multiline-text`, `mt` | Prompts for multi-line text input using an editor and returns the entered string. | |
 | `int` | Prompts for an integer value using a numeric spinner. | `--step` |
 | `decimal` | Prompts for a decimal value using a numeric spinner. | `--step` |
-| `confirm` | Prompts for a yes/no confirmation and returns a boolean. | `--prompt` |
+| `confirm` | Prompts for a yes/no confirmation and returns a boolean. | |
 | `date` | Prompts for a date and returns an ISO-8601 date string (YYYY-MM-DD). | |
 | `time` | Prompts for a time and returns an ISO-8601 time string (HH:MM:SS). | |
 | `duration` | Prompts for a duration and returns an ISO-8601 duration string (e.g. PT1H30M). | |
