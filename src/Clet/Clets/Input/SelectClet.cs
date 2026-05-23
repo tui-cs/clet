@@ -1,37 +1,38 @@
 using Terminal.Gui.App;
+using Terminal.Gui.Cli;
 using Terminal.Gui.Views;
 
 namespace Clet;
 
-internal sealed class SelectClet : IClet<string?>
+internal sealed class SelectClet : ICliCommand<string?>
 {
     public string PrimaryAlias => "select";
     public IReadOnlyList<string> Aliases => ["select"];
     public string Description => "Presents a list of options and returns the text of the selected item.";
-    public CletKind Kind => CletKind.Input;
+    public CommandKind Kind => CommandKind.Input;
     public Type ResultType => typeof (string);
 
-    public IReadOnlyList<CletOptionDescriptor> Options =>
+    public IReadOnlyList<CommandOptionDescriptor> Options =>
     [
         new ("options", "o", typeof (string), "Comma-separated list of options to display.", true, null),
     ];
 
     public bool AcceptsPositionalArgs => true;
 
-    public async Task<CletRunResult<string?>> RunAsync (
+    public async Task<CommandResult<string?>> RunAsync (
         IApplication app,
         string? initial,
-        CletRunOptions options,
+        CommandRunOptions options,
         CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
         string[] labels = options.Arguments is { Count: > 0 }
             ? LabelParser.Split (options.Arguments)
-            : options.CletOptions?.TryGetValue ("options", out string? optionsValue) == true
+            : options.CommandOptions.TryGetValue ("options", out string? optionsValue)
                 ? LabelParser.Split (optionsValue)
                 : [];
 
@@ -63,7 +64,7 @@ internal sealed class SelectClet : IClet<string?>
                     ? labels[idx]
                     : null;
 
-                return new () { Status = CletRunStatus.Ok, Value = selectedText };
+                return new (CommandStatus.Ok, selectedText, null, null);
             },
             addEnterBinding: false);
     }

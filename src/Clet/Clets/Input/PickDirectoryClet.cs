@@ -1,35 +1,36 @@
 using Terminal.Gui.App;
+using Terminal.Gui.Cli;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
 namespace Clet;
 
-internal sealed class PickDirectoryClet : IClet<string?>
+internal sealed class PickDirectoryClet : ICliCommand<string?>
 {
     public string PrimaryAlias => "pick-directory";
     public IReadOnlyList<string> Aliases => ["pick-directory", "dir"];
     public string Description => "Opens a directory picker dialog and returns the selected directory path.";
-    public CletKind Kind => CletKind.Input;
+    public CommandKind Kind => CommandKind.Input;
     public Type ResultType => typeof (string);
 
-    public IReadOnlyList<CletOptionDescriptor> Options =>
+    public IReadOnlyList<CommandOptionDescriptor> Options =>
     [
         new ("root", "r", typeof (string), "Starting directory (not a sandbox — user can navigate freely).", false, null),
     ];
 
-    public async Task<CletRunResult<string?>> RunAsync (
+    public async Task<CommandResult<string?>> RunAsync (
         IApplication app,
         string? initial,
-        CletRunOptions options,
+        CommandRunOptions options,
         CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
-        string? root = options.CletOptions?.TryGetValue ("root", out string? rootStr) == true ? rootStr : null;
+        string? root = options.CommandOptions.TryGetValue ("root", out string? rootStr) ? rootStr : null;
         string? startPath = root ?? initial;
 
         OpenDialog dialog = new ()
@@ -63,21 +64,21 @@ internal sealed class PickDirectoryClet : IClet<string?>
         }
         catch (OperationCanceledException)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
         if (cancellationToken.IsCancellationRequested)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
         IReadOnlyList<string> paths = dialog.FilePaths;
 
         if (paths.Count == 0)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
-        return new () { Status = CletRunStatus.Ok, Value = paths[0] };
+        return new (CommandStatus.Ok, paths[0], null, null);
     }
 }

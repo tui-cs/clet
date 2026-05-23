@@ -1,3 +1,4 @@
+using Terminal.Gui.Cli;
 using Xunit;
 
 namespace Clet.UnitTests;
@@ -7,14 +8,14 @@ public class BuiltInCletsTests
     [Fact]
     public void RegisterAll_RegistersSelect ()
     {
-        ICletRegistry registry = new CletRegistry ();
+        ICommandRegistry registry = new CommandRegistry ();
 
         BuiltInClets.RegisterAll (registry);
 
-        Assert.True (registry.TryResolve ("select", out IClet? clet));
+        Assert.True (registry.TryResolve ("select", out ICliCommand? clet));
         Assert.NotNull (clet);
         Assert.Equal ("select", clet.PrimaryAlias);
-        Assert.Equal (CletKind.Input, clet.Kind);
+        Assert.Equal (CommandKind.Input, clet.Kind);
     }
 
     [Theory]
@@ -40,12 +41,12 @@ public class BuiltInCletsTests
     [InlineData ("range")]
     public void RegisterAll_RegistersInputClet (string alias)
     {
-        ICletRegistry registry = new CletRegistry ();
+        ICommandRegistry registry = new CommandRegistry ();
         BuiltInClets.RegisterAll (registry);
 
-        Assert.True (registry.TryResolve (alias, out IClet? clet));
+        Assert.True (registry.TryResolve (alias, out ICliCommand? clet));
         Assert.NotNull (clet);
-        Assert.Equal (CletKind.Input, clet.Kind);
+        Assert.Equal (CommandKind.Input, clet.Kind);
     }
 
     [Theory]
@@ -57,18 +58,18 @@ public class BuiltInCletsTests
     [InlineData ("config")]
     public void RegisterAll_RegistersViewerClet (string alias)
     {
-        ICletRegistry registry = new CletRegistry ();
+        ICommandRegistry registry = new CommandRegistry ();
         BuiltInClets.RegisterAll (registry);
 
-        Assert.True (registry.TryResolve (alias, out IClet? clet));
+        Assert.True (registry.TryResolve (alias, out ICliCommand? clet));
         Assert.NotNull (clet);
-        Assert.Equal (CletKind.Viewer, clet.Kind);
+        Assert.Equal (CommandKind.Viewer, clet.Kind);
     }
 
     [Fact]
     public void RegisterAll_Registers19Clets ()
     {
-        CletRegistry registry = new ();
+        CommandRegistry registry = new ();
         BuiltInClets.RegisterAll (registry);
 
         Assert.Equal (18, registry.All.Count);

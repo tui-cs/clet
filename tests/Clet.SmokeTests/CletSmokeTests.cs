@@ -21,7 +21,7 @@ public class CletSmokeTests
 
         Assert.Equal (0, exit);
         Assert.Empty (stderr);
-        Assert.Matches (@"^\d+\.\d+\.\d+(-\S+)? \(Terminal\.Gui \S+\)\s*$", stdout);
+        Assert.Matches (@"^clet \d+\.\d+\.\d+(-\S+)? \(Terminal\.Gui \S+\)\s*$", stdout);
     }
 
     [Fact]
@@ -36,16 +36,15 @@ public class CletSmokeTests
     }
 
     [Fact]
-    public async Task ListJson_EmitsRegistryEnvelopeAndExitsZero ()
+    public async Task OpenCli_EmitsRegistryEnvelopeAndExitsZero ()
     {
-        (int exit, string stdout, string stderr) = await CletProcess.RunAsync (["list", "--json"]);
+        (int exit, string stdout, string stderr) = await CletProcess.RunAsync (["--opencli"]);
 
         Assert.Equal (0, exit);
         Assert.Empty (stderr);
         string trimmed = stdout.TrimEnd ();
-        Assert.Contains ("\"schemaVersion\":1", trimmed);
-        Assert.Contains ("\"alias\":\"select\"", trimmed);
-        Assert.Contains ("\"kind\":\"input\"", trimmed);
+        Assert.Contains ("\"opencli\":\"0.1\"", trimmed);
+        Assert.Contains ("\"name\":\"select\"", trimmed);
     }
 
     // `clet help <alias>` and `clet help` now route through the interactive md viewer
@@ -66,14 +65,13 @@ public class CletSmokeTests
     }
 
     [Fact]
-    public async Task ListJson_IncludesMdViewer ()
+    public async Task OpenCli_IncludesMdViewer ()
     {
-        (int exit, string stdout, string stderr) = await CletProcess.RunAsync (["list", "--json"]);
+        (int exit, string stdout, string stderr) = await CletProcess.RunAsync (["--opencli"]);
 
         Assert.Equal (0, exit);
         Assert.Empty (stderr);
-        Assert.Contains ("\"alias\":\"md\"", stdout);
-        Assert.Contains ("\"kind\":\"viewer\"", stdout);
+        Assert.Contains ("\"name\":\"md\"", stdout);
     }
 
     [Fact (Skip = "Requires real TG run loop with cancellation; v0.3 TUIcast harness will drive this against the AOT'd binary.")]

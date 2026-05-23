@@ -1,5 +1,6 @@
 using Terminal.Gui.App;
 using Xunit;
+using Terminal.Gui.Cli;
 
 namespace Clet.IntegrationTests;
 
@@ -13,17 +14,17 @@ public class SelectCletIntegrationTests
         app.Init ("ansi");
 
         SelectClet clet = new ();
-        CletRunOptions options = new ()
+        CommandRunOptions options = new ()
         {
-            CletOptions = new Dictionary<string, string> { ["options"] = "A,B,C" },
+            CommandOptions = new Dictionary<string, string> { ["options"] = "A,B,C" },
         };
 
         using CancellationTokenSource cts = new ();
         await cts.CancelAsync ();
 
-        CletRunResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Cancelled, result.Status);
+        Assert.Equal (CommandStatus.Cancelled, result.Status);
         Assert.Null (result.Value);
     }
 
@@ -36,17 +37,17 @@ public class SelectCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         SelectClet clet = new ();
-        CletRunOptions options = new ()
+        CommandRunOptions options = new ()
         {
-            CletOptions = new Dictionary<string, string> { ["options"] = "Apple,Banana,Cherry" },
+            CommandOptions = new Dictionary<string, string> { ["options"] = "Apple,Banana,Cherry" },
         };
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<string?> result = await clet.RunAsync (app, null, options, cts.Token);
 
         // Run returns after one iteration — result is Ok (value may be null since no input)
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 
     [Fact]
@@ -58,17 +59,17 @@ public class SelectCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         SelectClet clet = new ();
-        CletRunOptions options = new ()
+        CommandRunOptions options = new ()
         {
-            CletOptions = new Dictionary<string, string> { ["options"] = "X,Y,Z" },
+            CommandOptions = new Dictionary<string, string> { ["options"] = "X,Y,Z" },
         };
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<string?> result = await clet.RunAsync (app, "Y", options, cts.Token);
+        CommandResult<string?> result = await clet.RunAsync (app, "Y", options, cts.Token);
 
         // Should complete without error
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 }
 

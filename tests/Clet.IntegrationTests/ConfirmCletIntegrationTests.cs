@@ -1,5 +1,6 @@
 using Terminal.Gui.App;
 using Xunit;
+using Terminal.Gui.Cli;
 
 namespace Clet.IntegrationTests;
 
@@ -12,14 +13,14 @@ public class ConfirmCletIntegrationTests
         app.Init ("ansi");
 
         ConfirmClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
         await cts.CancelAsync ();
 
-        CletRunResult<bool?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<bool?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Cancelled, result.Status);
+        Assert.Equal (CommandStatus.Cancelled, result.Status);
         Assert.Null (result.Value);
     }
 
@@ -31,13 +32,13 @@ public class ConfirmCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         ConfirmClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<bool?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<bool?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 
     [Fact]
@@ -48,13 +49,13 @@ public class ConfirmCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         ConfirmClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<bool?> result = await clet.RunAsync (app, "true", options, cts.Token);
+        CommandResult<bool?> result = await clet.RunAsync (app, "true", options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 }
 

@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Terminal.Gui.App;
 using Xunit;
+using Terminal.Gui.Cli;
 
 namespace Clet.IntegrationTests;
 
@@ -13,14 +14,14 @@ public class AttributePickerCletIntegrationTests
         app.Init ("ansi");
 
         AttributePickerClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
         await cts.CancelAsync ();
 
-        CletRunResult<JsonObject?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<JsonObject?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Cancelled, result.Status);
+        Assert.Equal (CommandStatus.Cancelled, result.Status);
         Assert.Null (result.Value);
     }
 
@@ -32,13 +33,13 @@ public class AttributePickerCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         AttributePickerClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<JsonObject?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<JsonObject?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 }
 

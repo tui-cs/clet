@@ -1,4 +1,5 @@
 using Terminal.Gui.App;
+using Terminal.Gui.Cli;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -7,57 +8,50 @@ using Command = Terminal.Gui.Input.Command;
 
 namespace Clet;
 
-internal sealed class HelpClet (ICletRegistry registry) : IViewerClet
+internal sealed class HelpClet (ICommandRegistry registry) : IViewerCommand
 {
     public string PrimaryAlias => "help";
     public IReadOnlyList<string> Aliases => ["help"];
     public string Description => "Shows help for clet commands.";
-    public CletKind Kind => CletKind.Viewer;
+    public CommandKind Kind => CommandKind.Viewer;
     public Type ResultType => typeof (void);
     public bool AcceptsPositionalArgs => true;
 
-    public IReadOnlyList<CletOptionDescriptor> Options => [];
+    public IReadOnlyList<CommandOptionDescriptor> Options => [];
 
     /// <summary>Handles --cat mode without TUI init. Called by the dispatcher.</summary>
-    public int RenderCat (CletRunOptions options, TextWriter stdout, TextWriter stderr)
+    public Task<CommandResult?> RenderCatAsync (CommandRunOptions options, TextWriter stdout, CancellationToken cancellationToken)
     {
-        string? alias = options.Arguments?.FirstOrDefault ();
+        string? alias = options.Arguments.Count > 0 ? options.Arguments[0] : null;
 
         if (alias is not null and not "help" && !registry.TryResolve (alias, out _))
         {
-            stderr.WriteLine ($"error: Unknown alias '{alias}'. Try 'clet list' to see available clets.");
-
-            return ExitCodes.UsageError;
+            return Task.FromResult<CommandResult?> (new CommandResult (CommandStatus.Error, null, "usage", $"Unknown alias '{alias}'. Try 'clet list' to see available clets."));
         }
 
         (string markdown, _) = BuildHelpContent (alias);
         MarkdownHelpRenderer.RenderToAnsi (markdown, stdout);
 
-        return ExitCodes.Ok;
+        return Task.FromResult<CommandResult?> (new CommandResult (CommandStatus.Ok, null, null, null));
     }
 
-    public async Task<CletRunResult> RunAsync (
+    public async Task<CommandResult> RunAsync (
         IApplication app,
-        string? content,
-        CletRunOptions options,
+        string? initial,
+        CommandRunOptions options,
         CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, null, null, null);
         }
 
-        string? alias = options.Arguments?.FirstOrDefault ();
+        string? alias = options.Arguments.Count > 0 ? options.Arguments[0] : null;
 
         // Validate alias early — unknown aliases should error, not render
         if (alias is not null and not "help" && !registry.TryResolve (alias, out _))
         {
-            return new ()
-            {
-                Status = CletRunStatus.Error,
-                ErrorCode = "usage",
-                ErrorMessage = $"Unknown alias '{alias}'. Try 'clet list' to see available clets.",
-            };
+            return new (CommandStatus.Error, null, "usage", $"Unknown alias '{alias}'. Try 'clet list' to see available clets.");
         }
 
         (string markdown, string title) = BuildHelpContent (alias);
@@ -67,12 +61,12 @@ internal sealed class HelpClet (ICletRegistry registry) : IViewerClet
         {
             MarkdownHelpRenderer.RenderToAnsi (markdown, Console.Out);
 
-            return new () { Status = CletRunStatus.Ok };
+            return new (CommandStatus.Ok, null, null, null);
         }
 
         // --- Build TUI ---
 
-        bool browseMode = !options.NoBrowse;
+        bool browseMode = !options.HasExtension ("no-browse");
         BrowseBar? browseBar = null;
 
         Runnable window = new ()
@@ -186,10 +180,10 @@ internal sealed class HelpClet (ICletRegistry registry) : IViewerClet
         }
         catch (OperationCanceledException)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, null, null, null);
         }
 
-        return new () { Status = CletRunStatus.Ok };
+        return new (CommandStatus.Ok, null, null, null);
     }
 
     private (string Markdown, string Title) BuildHelpContent (string? alias)
@@ -214,7 +208,7 @@ internal sealed class HelpClet (ICletRegistry registry) : IViewerClet
             return (helpMd, "clet help");
         }
 
-        if (!registry.TryResolve (alias, out IClet? clet) || clet is null)
+        if (!registry.TryResolve (alias, out ICliCommand? clet) || clet is null)
         {
             return ($"# Unknown clet: {alias}\n\nTry `clet list` to see available clets.", "clet help");
         }

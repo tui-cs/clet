@@ -1,26 +1,27 @@
 using System.Globalization;
 using Terminal.Gui.App;
+using Terminal.Gui.Cli;
 using Terminal.Gui.Views;
 
 namespace Clet;
 
-internal sealed class DateClet : IClet<string?>
+internal sealed class DateClet : ICliCommand<string?>
 {
     public string PrimaryAlias => "date";
     public IReadOnlyList<string> Aliases => ["date"];
     public string Description => "Prompts for a date and returns an ISO-8601 date string (YYYY-MM-DD).";
-    public CletKind Kind => CletKind.Input;
+    public CommandKind Kind => CommandKind.Input;
     public Type ResultType => typeof (string);
 
-    public IReadOnlyList<CletOptionDescriptor> Options => [];
+    public IReadOnlyList<CommandOptionDescriptor> Options => [];
 
-    public bool TryValidateInitial (string initial, CletRunOptions options)
+    public bool TryValidateInitial (string initial, CommandRunOptions options)
         => DateTime.TryParse (initial, CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
 
-    public async Task<CletRunResult<string?>> RunAsync (
+    public async Task<CommandResult<string?>> RunAsync (
         IApplication app,
         string? initial,
-        CletRunOptions options,
+        CommandRunOptions options,
         CancellationToken cancellationToken)
     {
         DatePicker picker = new ();
@@ -44,7 +45,7 @@ internal sealed class DateClet : IClet<string?>
             {
                 string? formatted = result?.ToString ("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-                return new () { Status = CletRunStatus.Ok, Value = formatted };
+                return new (CommandStatus.Ok, formatted, null, null);
             });
     }
 }

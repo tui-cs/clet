@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Terminal.Gui.App;
 using Xunit;
+using Terminal.Gui.Cli;
 
 namespace Clet.IntegrationTests;
 
@@ -13,17 +14,17 @@ public class MultiSelectCletIntegrationTests
         app.Init ("ansi");
 
         MultiSelectClet clet = new ();
-        CletRunOptions options = new ()
+        CommandRunOptions options = new ()
         {
-            CletOptions = new Dictionary<string, string> { ["options"] = "A,B,C" },
+            CommandOptions = new Dictionary<string, string> { ["options"] = "A,B,C" },
         };
 
         using CancellationTokenSource cts = new ();
         await cts.CancelAsync ();
 
-        CletRunResult<JsonArray?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<JsonArray?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Cancelled, result.Status);
+        Assert.Equal (CommandStatus.Cancelled, result.Status);
         Assert.Null (result.Value);
     }
 
@@ -35,16 +36,16 @@ public class MultiSelectCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         MultiSelectClet clet = new ();
-        CletRunOptions options = new ()
+        CommandRunOptions options = new ()
         {
-            CletOptions = new Dictionary<string, string> { ["options"] = "Apple,Banana,Cherry" },
+            CommandOptions = new Dictionary<string, string> { ["options"] = "Apple,Banana,Cherry" },
         };
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<JsonArray?> result = await clet.RunAsync (app, null, options, cts.Token);
+        CommandResult<JsonArray?> result = await clet.RunAsync (app, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 
     [Fact]
@@ -55,16 +56,16 @@ public class MultiSelectCletIntegrationTests
         app.StopAfterFirstIteration = true;
 
         MultiSelectClet clet = new ();
-        CletRunOptions options = new ()
+        CommandRunOptions options = new ()
         {
-            CletOptions = new Dictionary<string, string> { ["options"] = "X,Y,Z" },
+            CommandOptions = new Dictionary<string, string> { ["options"] = "X,Y,Z" },
         };
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<JsonArray?> result = await clet.RunAsync (app, "X,Z", options, cts.Token);
+        CommandResult<JsonArray?> result = await clet.RunAsync (app, "X,Z", options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Ok, result.Status);
+        Assert.Equal (CommandStatus.Ok, result.Status);
     }
 }
 

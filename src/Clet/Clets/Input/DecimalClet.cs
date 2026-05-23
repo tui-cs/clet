@@ -1,29 +1,30 @@
 using System.Globalization;
 using Terminal.Gui.App;
+using Terminal.Gui.Cli;
 using Terminal.Gui.Views;
 
 namespace Clet;
 
-internal sealed class DecimalClet : IClet<decimal?>
+internal sealed class DecimalClet : ICliCommand<decimal?>
 {
     public string PrimaryAlias => "decimal";
     public IReadOnlyList<string> Aliases => ["decimal"];
     public string Description => "Prompts for a decimal value using a numeric spinner.";
-    public CletKind Kind => CletKind.Input;
+    public CommandKind Kind => CommandKind.Input;
     public Type ResultType => typeof (decimal);
 
-    public IReadOnlyList<CletOptionDescriptor> Options =>
+    public IReadOnlyList<CommandOptionDescriptor> Options =>
     [
         new ("step", null, typeof (decimal), "Step increment.", false, "0.1"),
     ];
 
-    public bool TryValidateInitial (string initial, CletRunOptions options)
+    public bool TryValidateInitial (string initial, CommandRunOptions options)
         => decimal.TryParse (initial, CultureInfo.InvariantCulture, out _);
 
-    public async Task<CletRunResult<decimal?>> RunAsync (
+    public async Task<CommandResult<decimal?>> RunAsync (
         IApplication app,
         string? initial,
-        CletRunOptions options,
+        CommandRunOptions options,
         CancellationToken cancellationToken)
     {
         NumericUpDown<decimal> spinner = new ()
@@ -32,7 +33,7 @@ internal sealed class DecimalClet : IClet<decimal?>
             Format = "{0:0.###}",
         };
 
-        if (options.CletOptions?.TryGetValue ("step", out string? stepStr) == true
+        if (options.CommandOptions.TryGetValue ("step", out string? stepStr)
             && decimal.TryParse (stepStr, CultureInfo.InvariantCulture, out decimal step))
         {
             spinner.Increment = step;

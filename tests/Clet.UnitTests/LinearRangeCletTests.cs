@@ -1,3 +1,4 @@
+using Terminal.Gui.Cli;
 using Xunit;
 
 namespace Clet.UnitTests;
@@ -11,7 +12,7 @@ public class LinearRangeCletTests
 
         Assert.Equal ("linear-range", clet.PrimaryAlias);
         Assert.Contains ("linear-range", clet.Aliases);
-        Assert.Equal (CletKind.Input, clet.Kind);
+        Assert.Equal (CommandKind.Input, clet.Kind);
         Assert.Equal (typeof (System.Text.Json.Nodes.JsonObject), clet.ResultType);
     }
 
@@ -40,14 +41,14 @@ public class LinearRangeCletTests
     public async Task RunAsync_NoOptions_ReturnsValidationError ()
     {
         LinearRangeClet clet = new ();
-        CletRunOptions options = new ();
+        CommandRunOptions options = new ();
 
         using CancellationTokenSource cts = new ();
 
-        CletRunResult<System.Text.Json.Nodes.JsonObject?> result = await clet.RunAsync (
+        CommandResult<System.Text.Json.Nodes.JsonObject?> result = await clet.RunAsync (
             null!, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Error, result.Status);
+        Assert.Equal (CommandStatus.Error, result.Status);
         Assert.Equal ("validation", result.ErrorCode);
         Assert.Contains ("requires --options", result.ErrorMessage ?? "");
     }
@@ -56,18 +57,18 @@ public class LinearRangeCletTests
     public async Task RunAsync_PreCancelled_ReturnsCancelled ()
     {
         LinearRangeClet clet = new ();
-        CletRunOptions options = new ()
+        CommandRunOptions options = new ()
         {
-            CletOptions = new Dictionary<string, string> { ["options"] = "a,b,c" },
+            CommandOptions = new Dictionary<string, string> { ["options"] = "a,b,c" },
         };
 
         using CancellationTokenSource cts = new ();
         await cts.CancelAsync ();
 
-        CletRunResult<System.Text.Json.Nodes.JsonObject?> result = await clet.RunAsync (
+        CommandResult<System.Text.Json.Nodes.JsonObject?> result = await clet.RunAsync (
             null!, null, options, cts.Token);
 
-        Assert.Equal (CletRunStatus.Cancelled, result.Status);
+        Assert.Equal (CommandStatus.Cancelled, result.Status);
     }
 }
 

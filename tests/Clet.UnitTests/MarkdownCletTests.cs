@@ -1,3 +1,4 @@
+using Terminal.Gui.Cli;
 using Xunit;
 
 namespace Clet.UnitTests;
@@ -17,7 +18,7 @@ public class MarkdownCletTests
     {
         MarkdownClet clet = new ();
 
-        Assert.Equal (CletKind.Viewer, clet.Kind);
+        Assert.Equal (CommandKind.Viewer, clet.Kind);
     }
 
     [Fact]
@@ -53,17 +54,13 @@ public class MarkdownCletTests
     }
 
     [Fact]
-    public void Options_ContainsThemeCatAndNoBrowse ()
+    public void Options_ContainsTheme ()
     {
         MarkdownClet clet = new ();
 
-        Assert.Equal (3, clet.Options.Count);
+        Assert.Single (clet.Options);
         Assert.Equal ("theme", clet.Options[0].Name);
         Assert.False (clet.Options[0].Required);
-        Assert.Equal ("cat", clet.Options[1].Name);
-        Assert.False (clet.Options[1].Required);
-        Assert.Equal ("no-browse", clet.Options[2].Name);
-        Assert.False (clet.Options[2].Required);
     }
 
     [Fact]

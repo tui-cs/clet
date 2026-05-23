@@ -1,8 +1,10 @@
+using Terminal.Gui.Cli;
+
 namespace Clet;
 
 internal static class BuiltInClets
 {
-    public static void RegisterAll (ICletRegistry registry)
+    public static void RegisterAll (ICommandRegistry registry)
     {
         registry.Register (new SelectClet ());
         registry.Register (new TextClet ());

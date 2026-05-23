@@ -1,3 +1,4 @@
+using Terminal.Gui.Cli;
 using Xunit;
 
 namespace Clet.UnitTests;
@@ -17,7 +18,7 @@ public class PickFileCletTests
     {
         PickFileClet clet = new ();
 
-        Assert.Equal (CletKind.Input, clet.Kind);
+        Assert.Equal (CommandKind.Input, clet.Kind);
     }
 
     [Fact]
@@ -59,7 +60,7 @@ public class PickFileCletTests
     [Fact]
     public void AcceptsPositionalArgs_IsFalse ()
     {
-        IClet clet = new PickFileClet ();
+        ICliCommand clet = new PickFileClet ();
 
         Assert.False (clet.AcceptsPositionalArgs);
     }
