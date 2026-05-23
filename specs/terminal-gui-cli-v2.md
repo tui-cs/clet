@@ -304,6 +304,8 @@ public sealed record GlobalOptionDescriptor (
 ### 4.5 Host
 
 ```csharp
+using System.Reflection;
+
 namespace Terminal.Gui.Cli;
 
 /// <summary>The main entry point. Owns parsing, dispatch, Terminal.Gui lifecycle, and output.</summary>
@@ -344,6 +346,9 @@ public sealed class CliHostOptions
     /// <summary>True when <see cref="AgentGuide" /> is an embedded resource name; false when literal content.</summary>
     public bool AgentGuideIsResource { get; set; } = true;
 
+    /// <summary>Assembly used to resolve embedded resources. Null falls back to <see cref="Assembly.GetEntryAssembly" />.</summary>
+    public Assembly? ResourceAssembly { get; set; }
+
     /// <summary>Consumer-defined global options parsed into <see cref="CommandRunOptions.Extensions" />.</summary>
     public List<GlobalOptionDescriptor> GlobalOptions { get; } = [];
 
@@ -354,7 +359,7 @@ public sealed class CliHostOptions
 }
 ```
 
-`CliHost` constructs and owns its `CommandRegistry`. It registers built-ins during construction after applying options: `help` is always registered unless replaced; `agent-guide` is registered only when `AgentGuide` is non-null unless replaced. `ReplaceBuiltInCommand` supports reserved aliases `help` and `agent-guide`; a replacement for `help` must include `help` in `Aliases`, and a replacement for `agent-guide` must include `agent-guide` in `Aliases`.
+`CliHost` constructs and owns its `CommandRegistry`. It registers built-ins during construction after applying options: `help` is always registered unless replaced; `agent-guide` is registered only when `AgentGuide` is non-null unless replaced. When `AgentGuideIsResource` is true, `CliHost` resolves `AgentGuide` from `ResourceAssembly ?? Assembly.GetEntryAssembly()` during construction and passes the resolved markdown string to `AgentGuideCommand`; missing assembly or missing resource throws `InvalidOperationException`. When `AgentGuideIsResource` is false, `AgentGuide` is already literal markdown. `ReplaceBuiltInCommand` supports reserved aliases `help` and `agent-guide`; a replacement for `help` must include `help` in `Aliases`, and a replacement for `agent-guide` must include `agent-guide` in `Aliases`.
 
 ### 4.6 Parser
 
@@ -525,9 +530,7 @@ public sealed class AgentGuideCommand : IViewerCommand
 }
 ```
 
-`HelpCommand` uses `MarkdownRenderer` for ANSI output and a Terminal.Gui markdown viewer for TUI mode. [TG-PENDING: Markdown] The TUI renderer depends on the Terminal.Gui markdown APIs described in Section 13.
-
-`AgentGuideCommand` is headless: it returns the guide markdown as the command value so plain output prints the text and `--json` wraps it in the envelope.
+`HelpCommand` uses `MarkdownRenderer` for ANSI output and `Terminal.Gui.Views.Markdown` for interactive TUI mode. `AgentGuideCommand` is headless: it returns the guide markdown as the command value so plain output prints the text and `--json` wraps it in the envelope.
 
 ### 4.8 Output and JSON
 
@@ -585,6 +588,23 @@ public static class OpenCliWriter
 
 `OpenCliWriter` hand-builds JSON with a shared string-escape helper. It must escape command aliases, descriptions, option names, short names, app names, versions, and metadata values.
 
+The JSON source-generation context is internal, not public API:
+
+```csharp
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace Terminal.Gui.Cli;
+
+[JsonSourceGenerationOptions (
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSerializable (typeof (JsonEnvelope))]
+internal partial class CliJsonContext : JsonSerializerContext
+{
+}
+```
+
 ### 4.9 Utilities
 
 ```csharp
@@ -640,7 +660,7 @@ public static class MarkdownRenderer
 }
 ```
 
-[TG-PENDING: Markdown] `MarkdownRenderer` wraps the Terminal.Gui markdown-to-ANSI API described in Section 13. This spec assumes an API equivalent to `Markdown.RenderToAnsi`; if Terminal.Gui finalizes a different name or shape, `MarkdownRenderer` adapts internally and this spec is updated without changing consumer-facing behavior.
+`MarkdownRenderer` wraps `Terminal.Gui.Views.Markdown.RenderToAnsi()` and then applies `TerminalEscapeSanitizer.SanitizeRenderedOutput` before writing to the target `TextWriter`. The required Terminal.Gui version is listed in the Terminal.Gui Dependency Floor section.
 
 ### 4.10 InputCommandRunner
 
@@ -654,7 +674,7 @@ namespace Terminal.Gui.Cli;
 /// <summary>Shared boilerplate for input commands that wrap a control in RunnableWrapper.</summary>
 public static class InputCommandRunner
 {
-    /// <summary>Configures, runs, and maps the result from an input command wrapper.</summary>
+    /// <summary>Configures, runs, and maps the result from an input command wrapper when raw result and output value differ.</summary>
     public static Task<CommandResult<TValue>> RunAsync<TControl, TRawResult, TValue> (
         IApplication app,
         RunnableWrapper<TControl, TRawResult> wrapper,
@@ -677,6 +697,8 @@ public static class InputCommandRunner
 }
 ```
 
+Use the three-type-parameter overload when the wrapper's raw result must be mapped to a different output value. Use the two-type-parameter overload when `TRawResult` and `TValue` are the same and the wrapper result can be returned directly.
+
 `InputCommandRunner` applies these defaults before `app.RunAsync`: `Title = options.Title ?? defaultTitle`, `Width = Dim.Fill()`, `BorderStyle = LineStyle.Rounded`, `Border.Thickness = new Thickness (0, 1, 0, 0)`, and Enter key binding to `Command.Accept` when requested. Consumers override using standard Terminal.Gui lifecycle, especially `wrapper.Initialized`; the library must not add custom styling callbacks.
 
 ## 5. CLI Grammar
@@ -693,7 +715,7 @@ public static class InputCommandRunner
 
 There is no `list` command. Human listing is `--help`; structured listing is `--opencli`.
 
-### 5.1 Framework flags
+### 5.1 Framework command flags
 
 | Flag | Short | Value | Target property | Behavior |
 |------|-------|-------|-----------------|----------|
@@ -706,19 +728,28 @@ There is no `list` command. Human listing is `--help`; structured listing is `--
 | `--cat` | none | none | `Cat=true` | Ask viewer to render to stdout without TUI. |
 | `--output` | `-o` | path | `OutputPath` | Write successful command output to a newly-created file. |
 | `--rows` | `-r` | positive int | `Rows` | Constrain inline height. |
-| `--opencli` | none | none | root flag | Emit OpenCLI JSON and exit. |
 
-Supported syntax: `--option value`, `--option=value`, the short forms of framework flags documented in the table above, and `--` to end option parsing. Short bundling (`-jf`) is not supported.
+### 5.2 Root-only framework flags
 
-### 5.2 Consumer global options
+These are intercepted before command dispatch and do not populate `CommandRunOptions`.
+
+| Flag | Short | Behavior |
+|------|-------|----------|
+| `--help` | `-h` | Write root help and exit 0. |
+| `--version` | none | Write app name/version and exit 0. |
+| `--opencli` | none | Emit OpenCLI JSON and exit 0. |
+
+Supported syntax: `--option value`, `--option=value`, the short forms of framework command flags documented above, and `--` to end option parsing. Short bundling (`-jf`) is not supported.
+
+### 5.3 Consumer global options
 
 Consumers add `GlobalOptionDescriptor` values to `CliHostOptions.GlobalOptions`. Matching is case-insensitive by long name or one-character short name. For flags, `Extensions[name]` contains one empty string per occurrence. For repeatable value options, all values are appended. For non-repeatable value options, the last value wins.
 
-### 5.3 Per-command options
+### 5.4 Per-command options
 
 A token not matched as a framework flag or consumer global is accepted as a per-command option only if it matches the resolved command's `Options` by `Name` or `ShortName`. Values are strings. Unknown options fail with exit code 2. Required/default semantics are metadata the command must enforce; the parser validates presence and value consumption but does not coerce to `ValueType`.
 
-### 5.4 Help interception
+### 5.5 Help interception
 
 `<alias> --help`, `<alias> -h`, and `<alias> help` are intercepted by `CliHost.RunAsync` before `ArgParser.Parse()`. This is required because `--help` is not a per-command option and the parser would otherwise reject it. The command must already be registered; unknown aliases return usage error.
 
@@ -828,7 +859,7 @@ When `CliHostOptions.AgentGuide` is set, `CliHost` registers `AgentGuideCommand`
 | `<app> agent-guide --json` | Writes JSON envelope with guide text as `value`, exit 0. |
 | no configured guide | Command is absent; invoking it is unknown command, exit 2. |
 
-When `AgentGuideIsResource` is true, the value is an embedded resource name resolved from the consumer assembly. When false, it is literal markdown content.
+When `AgentGuideIsResource` is true, the value is an embedded resource name resolved from `CliHostOptions.ResourceAssembly ?? Assembly.GetEntryAssembly()`. Consumers should set `ResourceAssembly = typeof (Program).Assembly` for explicit, testable resolution. When false, `AgentGuide` is literal markdown content.
 
 ### 8.3 `--opencli`
 
@@ -913,7 +944,7 @@ Port `tests/Terminal.Gui.Cli.Tests` from clet PR #176 as the baseline public API
 | Integration | `Terminal.Gui.Cli.IntegrationTests` | `CliHost` end-to-end with `Application.Create()`, cancellation, timeout, `InputCommandRunner`, interactive help rendering | Full parallel; no process-global mutation unless isolated by collection. |
 | Smoke | `Terminal.Gui.Cli.SmokeTests` | Spawn `examples/Terminal.Gui.Cli.ExampleApp`; verify `--help`, `--version`, `--opencli`, `agent-guide`, JSON output, exit codes | OS matrix, Release build. |
 
-Write fresh tests for `HelpCommand`, `AgentGuideCommand`, `ReplaceBuiltInCommand`, `EmbeddedMarkdownHelpProvider`, `MarkdownRenderer`, and smoke tests tied to the new repo/example app. Tests run with `dotnet run --project tests/<project>`.
+Write fresh tests for `HelpCommand`, `AgentGuideCommand`, `ReplaceBuiltInCommand`, `CliHostOptions.ResourceAssembly`, `EmbeddedMarkdownHelpProvider`, `MarkdownRenderer`, and smoke tests tied to the new repo/example app. Tests run with `dotnet run --project tests/<project>`.
 
 ## 11. CI/CD
 
@@ -944,8 +975,11 @@ Versioning follows Editor: base `<Version>` in `Directory.Build.props`; develop 
 | Environment-variable option fallback or short-option bundling | Not required for proven API; keep parser small. |
 | Owning consumer config files | Consumers set `ConfigurationManager.AppName`; library only enables/falls back during dispatch. |
 
-## 13. External Terminal.Gui Dependencies
+## 13. Terminal.Gui Dependency Floor
 
-| Marker | Dependency | Required by | Acceptance criteria | Fallback |
-|--------|------------|-------------|---------------------|----------|
-| `[TG-PENDING: Markdown]` | Public Terminal.Gui markdown-to-ANSI rendering API and markdown View suitable for help display | `MarkdownRenderer`, `HelpCommand` | A pinned `TerminalGuiVersion` exposes stable APIs that render markdown to ANSI and display markdown interactively without private reflection. | If interactive markdown View is unavailable, `HelpCommand` may use a read-only text View with ANSI/plain markdown content; if ANSI rendering changes name, `MarkdownRenderer` adapts internally without changing public API. |
+| Dependency | Required by | Minimum version | Requirement |
+|------------|-------------|-----------------|-------------|
+| `Terminal.Gui.Views.Markdown` View | `HelpCommand` interactive mode | `2.4.1-develop.11` or later | Display markdown help in a fullscreen Terminal.Gui viewer. |
+| `Terminal.Gui.Views.Markdown.RenderToAnsi()` | `MarkdownRenderer`, `HelpCommand --cat` | `2.4.1-develop.11` or later | Render markdown to ANSI for stdout output before sanitizer pass-through. |
+
+`Directory.Build.props` must pin `TerminalGuiVersion` to a version that contains both APIs. CI should fail fast if the pinned package no longer exposes them.
