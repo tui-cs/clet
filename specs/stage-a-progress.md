@@ -110,10 +110,10 @@ Implementing Stage A of the Terminal.Gui.Cli library spec: extracting the hostin
 | # | Issue | Notes |
 |---|---|---|
 | 1 | Spec §5.5 shows `ReplaceBuiltInCommand` on `CliHostOptions` | Not implemented yet since built-in commands (HelpCommand, AgentGuideCommand) are deferred. Will add when those are implemented. |
-| 2 | `MarkdownRenderer` utility deferred | Depends on TG exposing markdown-to-ANSI rendering API. The library compiles and works without it. |
+| 2 | ~~`MarkdownRenderer` utility deferred~~ | **RESOLVED**: TG #5388 added `Markdown.RenderToAnsi()`. clet now uses it directly in `MarkdownHelpRenderer` (commit `2157025`). |
 | 3 | C# `\x` escape greedy parsing | When writing test literals like `"\x1bb"`, the `\x` consumes up to 4 hex digits, so `b` becomes part of the escape. Must use `\u001b` + string concatenation for hex escapes followed by hex characters in tests. |
-| 4 | `--cat` should be documented as framework flag in spec | Spec §5.3 lists framework options but `--cat` isn't explicitly listed there. It's a framework flag parsed by ArgParser (alongside --json, --fullscreen, --timeout). The spec §4 mentions "clet md --cat" but doesn't clarify ownership. |
-| 5 | `list` command removal needs spec update | Spec §4.3 mentions `clet list --json`. After migration to CliHost, this is replaced by `--opencli` (framework flag). The spec should document this change. |
+| 4 | ~~`--cat` should be documented as framework flag in spec~~ | **RESOLVED**: Already present in spec §6.1 table at line 524. |
+| 5 | ~~`list` command removal needs spec update~~ | **RESOLVED**: No stale `list` command references exist in the spec. |
 | 6 | Consumer global options vs per-command options | The spec doesn't clearly distinguish between options owned by the framework, options registered by the consumer app as globals (like --allow-file), and per-command options. In practice: framework flags are hard-coded in ArgParser; consumer globals go in Extensions; per-command options go in CommandOptions. |
 
 ## Files Created (25 source + 8 test)
