@@ -73,7 +73,7 @@ public enum CommandKind
     /// <summary>An interactive command that returns a typed value.</summary>
     Input,
 
-    /// <summary>An interactive or headless command that does not require a typed input result.</summary>
+    /// <summary>An interactive or headless command that does not return a typed result value.</summary>
     Viewer
 }
 
@@ -867,7 +867,7 @@ src/
       CommandRegistry.cs
     Hosting/
       ArgParser.cs
-      CliHost.cs
+      CliHost.cs                  (dispatch is inline; no CommandDispatcher.cs)
       CliHostOptions.cs
       ExitCodes.cs
       GlobalOptionDescriptor.cs
@@ -897,8 +897,6 @@ tests/
 examples/
   Terminal.Gui.Cli.ExampleApp/
 ```
-
-No `CommandDispatcher.cs` exists.
 
 ## 10. Test Strategy
 
