@@ -22,15 +22,37 @@ internal sealed class MarkdownClet : IViewerCommand
         new ("theme", "t", typeof (string),
             $"Syntax-highlighting theme. Available: {string.Join (", ", Enum.GetNames<ThemeName> ())}",
             false, nameof (ThemeName.DarkPlus)),
-        new ("cat", null, typeof (bool),
-            "Render markdown to stdout without launching the TUI viewer.",
-            false, "false"),
-        new ("no-browse", null, typeof (bool),
-            "Disable browser mode (back/forward navigation, top bar).",
-            false, "false"),
     ];
 
     public bool AcceptsPositionalArgs => true;
+
+    public Task<CommandResult?> RenderCatAsync (CommandRunOptions options, TextWriter stdout, CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromResult<CommandResult?> (new CommandResult (CommandStatus.Cancelled, null, null, null));
+        }
+
+        // Resolve content
+        TextReader? stdinReader = Console.IsInputRedirected ? Console.In : null;
+        MarkdownContentResolver.ResolveResult resolved = MarkdownContentResolver.Resolve (null, options, stdinReader);
+
+        if (!resolved.IsSuccess)
+        {
+            return Task.FromResult<CommandResult?> (new CommandResult (CommandStatus.Error, null, resolved.ErrorCode, resolved.ErrorMessage));
+        }
+
+        string? content = resolved.Content;
+
+        if (string.IsNullOrEmpty (content))
+        {
+            return Task.FromResult<CommandResult?> (new CommandResult (CommandStatus.Error, null, "io", "No content to render."));
+        }
+
+        MarkdownHelpRenderer.RenderToAnsi (content, stdout);
+
+        return Task.FromResult<CommandResult?> (new CommandResult (CommandStatus.Ok, null, null, null));
+    }
 
     public async Task<CommandResult> RunAsync (
         IApplication app,

@@ -20,7 +20,7 @@ internal static class Program
         CliHost host = new (o =>
         {
             o.ApplicationName = "clet";
-            o.Version = VersionInfo.GetCletVersion ();
+            o.Version = $"{VersionInfo.GetCletVersion ()} (Terminal.Gui {VersionInfo.GetTerminalGuiVersion ()})";
             o.GlobalOptions.Add (new ("allow-file", null, "Permit file access outside cwd", IsFlag: false, Repeatable: true));
             o.GlobalOptions.Add (new ("allow-binary", null, "Permit binary file content", IsFlag: true));
             o.GlobalOptions.Add (new ("no-browse", null, "Disable link navigation in viewers", IsFlag: true));
