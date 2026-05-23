@@ -4,7 +4,7 @@
 
 ## 0. Repo Identity
 
-`gui-cs/Terminal.Gui.cli` is a new gui-cs library repo for the NuGet package `Terminal.Gui.Cli`. The repo slug intentionally uses lowercase `cli`; the package, assembly, and namespace use the `Terminal.Gui.Cli` identifier with the final segment spelled `Cli`. Before writing library code, scaffold the repo by cloning the structure and maintenance model of `gui-cs/Editor` (the Terminal.Gui.Editor repo):
+`gui-cs/Terminal.Gui.cli` is a new gui-cs library repo for the NuGet package `Terminal.Gui.Cli`. This repo/package casing split is normative: the repo slug uses lowercase `cli`; the package, assembly, and namespace use the `Terminal.Gui.Cli` identifier with the final segment spelled `Cli`. Before writing library code, scaffold the repo by cloning the structure and maintenance model of `gui-cs/Editor` (the Terminal.Gui.Editor repo):
 
 - `develop` is the integration branch; `main` is the stable release branch.
 - Copy and adapt `specs/constitution.md`; it is the highest-authority engineering document.
@@ -56,7 +56,7 @@ Many Terminal.Gui apps need the same hosting layer: parse command-line args, res
 | C7 | Schema v1 is append-only within library major version 1.x. |
 | C8 | Zero warnings in Debug and Release. |
 
-The constitution must also document two narrow file-layout exceptions from the proven API: `CommandResult` and `CommandResult<T>` live together in `CommandResult.cs`, and `ICliCommand<TValue>` lives in `ICliCommandGeneric.cs`. Do not use angle brackets in filenames: `<` and `>` are invalid on Windows and awkward in POSIX shells. The `Generic` suffix is the established convention for this single generic-interface companion file.
+The constitution must also document two narrow file-layout exceptions proven by the clet prototype in PR #176: `CommandResult` and `CommandResult<T>` live together in `CommandResult.cs`, and `ICliCommand<TValue>` lives in `ICliCommandGeneric.cs`. Do not use angle brackets in filenames: `<` and `>` are invalid on Windows and awkward in POSIX shells. The `Generic` suffix is the established convention for this single generic-interface companion file.
 
 ## 4. Public API Surface
 
@@ -354,7 +354,7 @@ public sealed class CliHostOptions
 }
 ```
 
-`CliHost` constructs and owns its `CommandRegistry`. It registers built-ins during construction after applying options: `help` is always registered unless replaced; `agent-guide` is registered only when `AgentGuide` is non-null unless replaced. `ReplaceBuiltInCommand` supports reserved aliases `help` and `agent-guide`; replacements must have the replacement alias in `Aliases`.
+`CliHost` constructs and owns its `CommandRegistry`. It registers built-ins during construction after applying options: `help` is always registered unless replaced; `agent-guide` is registered only when `AgentGuide` is non-null unless replaced. `ReplaceBuiltInCommand` supports reserved aliases `help` and `agent-guide`; a replacement for `help` must include `help` in `Aliases`, and a replacement for `agent-guide` must include `agent-guide` in `Aliases`.
 
 ### 4.6 Parser
 
@@ -525,7 +525,7 @@ public sealed class AgentGuideCommand : IViewerCommand
 }
 ```
 
-`HelpCommand` uses `MarkdownRenderer` for ANSI output and a Terminal.Gui markdown viewer for TUI mode. [TG-PENDING: Markdown] The TUI renderer depends on the Terminal.Gui markdown APIs described in §13.
+`HelpCommand` uses `MarkdownRenderer` for ANSI output and a Terminal.Gui markdown viewer for TUI mode. [TG-PENDING: Markdown] The TUI renderer depends on the Terminal.Gui markdown APIs described in Section 13.
 
 `AgentGuideCommand` is headless: it returns the guide markdown as the command value so plain output prints the text and `--json` wraps it in the envelope.
 
@@ -640,7 +640,7 @@ public static class MarkdownRenderer
 }
 ```
 
-[TG-PENDING: Markdown] `MarkdownRenderer` wraps the Terminal.Gui markdown-to-ANSI API described in §13. This spec assumes an API equivalent to `Markdown.RenderToAnsi`; if Terminal.Gui finalizes a different name or shape, `MarkdownRenderer` adapts internally and this spec is updated without changing consumer-facing behavior.
+[TG-PENDING: Markdown] `MarkdownRenderer` wraps the Terminal.Gui markdown-to-ANSI API described in Section 13. This spec assumes an API equivalent to `Markdown.RenderToAnsi`; if Terminal.Gui finalizes a different name or shape, `MarkdownRenderer` adapts internally and this spec is updated without changing consumer-facing behavior.
 
 ### 4.10 InputCommandRunner
 
