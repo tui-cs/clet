@@ -61,13 +61,13 @@ public static class OpenCliWriter
 
                 firstOpt = false;
                 sb.Append ("{\"name\":\"--");
-                sb.Append (opt.Name);
+                AppendJsonString (sb, opt.Name, skipQuotes: true);
                 sb.Append ('"');
 
                 if (opt.ShortName is not null)
                 {
                     sb.Append (",\"aliases\":[\"-");
-                    sb.Append (opt.ShortName);
+                    AppendJsonString (sb, opt.ShortName, skipQuotes: true);
                     sb.Append ("\"]");
                 }
 
@@ -105,7 +105,15 @@ public static class OpenCliWriter
 
     private static void AppendJsonString (StringBuilder sb, string value)
     {
-        sb.Append ('"');
+        AppendJsonString (sb, value, skipQuotes: false);
+    }
+
+    private static void AppendJsonString (StringBuilder sb, string value, bool skipQuotes)
+    {
+        if (!skipQuotes)
+        {
+            sb.Append ('"');
+        }
 
         foreach (char c in value)
         {
@@ -132,6 +140,9 @@ public static class OpenCliWriter
             }
         }
 
-        sb.Append ('"');
+        if (!skipQuotes)
+        {
+            sb.Append ('"');
+        }
     }
 }

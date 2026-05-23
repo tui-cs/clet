@@ -86,17 +86,34 @@ public static class TerminalEscapeSanitizer
 
                         if (next == '[')
                         {
-                            sb?.Append ('\x1b');
-                            sb?.Append ('[');
+                            // Buffer the CSI sequence and only emit if it's SGR (ends with 'm')
+                            int seqStart = i;
                             i += 2;
+                            int paramStart = i;
 
                             while (i < renderedAnsi.Length)
                             {
                                 char seqChar = renderedAnsi[i];
-                                sb?.Append (seqChar);
 
                                 if (seqChar is >= '@' and <= '~')
                                 {
+                                    if (seqChar == 'm')
+                                    {
+                                        // SGR sequence — safe to pass through
+                                        sb?.Append ('\u001b');
+                                        sb?.Append ('[');
+
+                                        for (int k = paramStart; k <= i; k++)
+                                        {
+                                            sb?.Append (renderedAnsi[k]);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // Non-SGR CSI (device query, erase, mode change) — strip it
+                                        sb ??= new StringBuilder (renderedAnsi.Length).Append (renderedAnsi, 0, seqStart);
+                                    }
+
                                     break;
                                 }
 

@@ -50,8 +50,8 @@ public class CommandRegistryTests
     public void Register_DuplicateAlias_Throws ()
     {
         CommandRegistry registry = new ();
-        StubCommand cmd1 = new ("a", ["shared"]);
-        StubCommand cmd2 = new ("b", ["shared"]);
+        StubCommand cmd1 = new ("a", ["a", "shared"]);
+        StubCommand cmd2 = new ("b", ["b", "shared"]);
         registry.Register (cmd1);
 
         Assert.Throws<InvalidOperationException> (() => registry.Register (cmd2));
@@ -69,5 +69,15 @@ public class CommandRegistryTests
         Assert.Equal (2, registry.All.Count);
         Assert.Contains (cmd1, registry.All);
         Assert.Contains (cmd2, registry.All);
+    }
+
+    [Fact]
+    public void Register_PrimaryAliasNotInAliases_Throws ()
+    {
+        CommandRegistry registry = new ();
+        StubCommand cmd = new ("primary", ["other"]);
+
+        InvalidOperationException ex = Assert.Throws<InvalidOperationException> (() => registry.Register (cmd));
+        Assert.Contains ("PrimaryAlias", ex.Message);
     }
 }
