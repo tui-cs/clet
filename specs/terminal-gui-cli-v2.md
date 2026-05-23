@@ -4,7 +4,7 @@
 
 ## 0. Repo Identity
 
-`gui-cs/Terminal.Gui.cli` is a new gui-cs library repo for the NuGet package `Terminal.Gui.Cli`. The repo slug intentionally uses lowercase `cli`; the package, assembly, and namespace use Pascal-case `Cli`. Before writing library code, scaffold the repo by cloning the structure and maintenance model of `gui-cs/Editor` (the Terminal.Gui.Editor repo):
+`gui-cs/Terminal.Gui.cli` is a new gui-cs library repo for the NuGet package `Terminal.Gui.Cli`. The repo slug intentionally uses lowercase `cli`; the package, assembly, and namespace use the `Terminal.Gui.Cli` identifier with the final segment spelled `Cli`. Before writing library code, scaffold the repo by cloning the structure and maintenance model of `gui-cs/Editor` (the Terminal.Gui.Editor repo):
 
 - `develop` is the integration branch; `main` is the stable release branch.
 - Copy and adapt `specs/constitution.md`; it is the highest-authority engineering document.
@@ -56,7 +56,7 @@ Many Terminal.Gui apps need the same hosting layer: parse command-line args, res
 | C7 | Schema v1 is append-only within library major version 1.x. |
 | C8 | Zero warnings in Debug and Release. |
 
-The constitution must also document two narrow file-layout exceptions from the proven API: `CommandResult` and `CommandResult<T>` live together in `CommandResult.cs`, and `ICliCommand<TValue>` lives in `ICliCommandGeneric.cs` because generic type syntax cannot be represented directly in a portable filename.
+The constitution must also document two narrow file-layout exceptions from the proven API: `CommandResult` and `CommandResult<T>` live together in `CommandResult.cs`, and `ICliCommand<TValue>` lives in `ICliCommandGeneric.cs`. Do not use angle brackets in filenames: `<` and `>` are invalid on Windows and awkward in POSIX shells. The `Generic` suffix is the established convention for this single generic-interface companion file.
 
 ## 4. Public API Surface
 
@@ -117,7 +117,7 @@ public readonly record struct CommandResult<T> (
     string? ErrorMessage);
 ```
 
-`CommandResult` and `CommandResult<T>` must remain readonly record structs in one file because their conversion semantics are tightly coupled.
+`CommandResult` and `CommandResult<T>` must remain readonly record structs in one file because `ICliCommand<TValue>` bridges the typed result to the non-generic dispatch result by copying the same status, value, error code, and error message fields.
 
 ### 4.2 Command interfaces
 
@@ -150,7 +150,10 @@ public interface ICliCommand
     /// <summary>Whether this command consumes positional arguments.</summary>
     bool AcceptsPositionalArgs => false;
 
-    /// <summary>Validates the --initial value before Terminal.Gui starts.</summary>
+    /// <summary>
+    /// Validates the --initial value before Terminal.Gui starts. The default permits any value;
+    /// commands override this method when they need command-specific validation.
+    /// </summary>
     bool TryValidateInitial (string initial, CommandRunOptions options) => true;
 
     /// <summary>Runs the command after the host has initialized Terminal.Gui.</summary>
@@ -522,7 +525,9 @@ public sealed class AgentGuideCommand : IViewerCommand
 }
 ```
 
-`HelpCommand` uses `MarkdownRenderer` for ANSI output and a Terminal.Gui markdown viewer for TUI mode. [TG-PENDING: Markdown] The TUI renderer depends on the Terminal.Gui markdown APIs described in §13. `AgentGuideCommand` is headless: it returns the guide markdown as the command value so plain output prints the text and `--json` wraps it in the envelope.
+`HelpCommand` uses `MarkdownRenderer` for ANSI output and a Terminal.Gui markdown viewer for TUI mode. [TG-PENDING: Markdown] The TUI renderer depends on the Terminal.Gui markdown APIs described in §13.
+
+`AgentGuideCommand` is headless: it returns the guide markdown as the command value so plain output prints the text and `--json` wraps it in the envelope.
 
 ### 4.8 Output and JSON
 
@@ -635,7 +640,7 @@ public static class MarkdownRenderer
 }
 ```
 
-[TG-PENDING: Markdown] `MarkdownRenderer` wraps the Terminal.Gui markdown-to-ANSI API described in §13. If the TG API is named `Markdown.RenderToAnsi`, this method is a thin pass-through plus `TerminalEscapeSanitizer.SanitizeRenderedOutput`.
+[TG-PENDING: Markdown] `MarkdownRenderer` wraps the Terminal.Gui markdown-to-ANSI API described in §13. This spec assumes an API equivalent to `Markdown.RenderToAnsi`; if Terminal.Gui finalizes a different name or shape, `MarkdownRenderer` adapts internally and this spec is updated without changing consumer-facing behavior.
 
 ### 4.10 InputCommandRunner
 
@@ -703,7 +708,7 @@ There is no `list` command. Human listing is `--help`; structured listing is `--
 | `--rows` | `-r` | positive int | `Rows` | Constrain inline height. |
 | `--opencli` | none | none | root flag | Emit OpenCLI JSON and exit. |
 
-Supported syntax: `--option value`, `--option=value`, short flags listed above, and `--` to end option parsing. Short bundling (`-jf`) is not supported.
+Supported syntax: `--option value`, `--option=value`, the short forms of framework flags documented in the table above, and `--` to end option parsing. Short bundling (`-jf`) is not supported.
 
 ### 5.2 Consumer global options
 
