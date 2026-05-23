@@ -8,6 +8,13 @@ public sealed class CommandRegistry : ICommandRegistry
 
     public void Register (ICliCommand command)
     {
+        // Ensure PrimaryAlias is resolvable via the registry
+        if (!command.Aliases.Contains (command.PrimaryAlias, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException (
+                $"Command '{command.PrimaryAlias}' has a PrimaryAlias that is not included in its Aliases collection.");
+        }
+
         foreach (string alias in command.Aliases)
         {
             if (!_byAlias.TryAdd (alias, command))

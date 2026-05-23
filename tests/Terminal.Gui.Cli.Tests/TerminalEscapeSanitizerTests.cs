@@ -81,4 +81,24 @@ public class TerminalEscapeSanitizerTests
 
         Assert.Equal (input, result);
     }
+
+    [Fact]
+    public void SanitizeRenderedOutput_StripsNonSgrCsi ()
+    {
+        // CSI 6n (device status report / cursor position query) — should be stripped
+        string input = "before\u001b[6nafter";
+        string result = TerminalEscapeSanitizer.SanitizeRenderedOutput (input);
+
+        Assert.Equal ("beforeafter", result);
+    }
+
+    [Fact]
+    public void SanitizeRenderedOutput_StripsEraseCsi ()
+    {
+        // CSI 2J (erase display) — should be stripped
+        string input = "before\u001b[2Jafter";
+        string result = TerminalEscapeSanitizer.SanitizeRenderedOutput (input);
+
+        Assert.Equal ("beforeafter", result);
+    }
 }
