@@ -1,42 +1,43 @@
 using System.Text.Json.Nodes;
 using Terminal.Gui.App;
+using Terminal.Gui.Cli;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
 namespace Clet;
 
-internal sealed class PickFileClet : IClet<JsonNode?>
+internal sealed class PickFileClet : ICliCommand<JsonNode?>
 {
     public string PrimaryAlias => "pick-file";
     public IReadOnlyList<string> Aliases => ["pick-file", "file"];
     public string Description => "Opens a file picker dialog and returns the selected file path(s).";
-    public CletKind Kind => CletKind.Input;
+    public CommandKind Kind => CommandKind.Input;
     public Type ResultType => typeof (JsonNode);
 
-    public IReadOnlyList<CletOptionDescriptor> Options =>
+    public IReadOnlyList<CommandOptionDescriptor> Options =>
     [
         new("multi", "m", typeof(bool), "Allow selecting multiple files.", false, "false"),
         new("root", "r", typeof(string), "Starting directory (not a sandbox — user can navigate freely).", false, null),
         new("filter", "f", typeof(string), "File type filter (e.g. \"*.cs\").", false, null),
     ];
 
-    public async Task<CletRunResult<JsonNode?>> RunAsync (
+    public async Task<CommandResult<JsonNode?>> RunAsync (
         IApplication app,
         string? initial,
-        CletRunOptions options,
+        CommandRunOptions options,
         CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
-        bool multi = options.CletOptions?.TryGetValue ("multi", out string? multiStr) == true
+        bool multi = options.CommandOptions.TryGetValue ("multi", out string? multiStr)
                      && string.Equals (multiStr, "true", StringComparison.OrdinalIgnoreCase);
 
-        string? root = options.CletOptions?.TryGetValue ("root", out string? rootStr) == true ? rootStr : null;
-        string? filter = options.CletOptions?.TryGetValue ("filter", out string? filterStr) == true ? filterStr : null;
+        string? root = options.CommandOptions.TryGetValue ("root", out string? rootStr) ? rootStr : null;
+        string? filter = options.CommandOptions.TryGetValue ("filter", out string? filterStr) ? filterStr : null;
         string? startPath = root ?? initial;
 
         OpenDialog dialog = new ()
@@ -78,24 +79,24 @@ internal sealed class PickFileClet : IClet<JsonNode?>
         }
         catch (OperationCanceledException)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
         if (cancellationToken.IsCancellationRequested)
         {
-            return new CletRunResult<JsonNode?> { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
         IReadOnlyList<string> paths = dialog.FilePaths;
 
         if (paths.Count == 0)
         {
-            return new CletRunResult<JsonNode?> { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
         if (!multi)
         {
-            return new CletRunResult<JsonNode?> { Status = CletRunStatus.Ok, Value = JsonValue.Create (paths[0]) };
+            return new (CommandStatus.Ok, JsonValue.Create (paths[0]), null, null);
         }
 
         List<string> sorted = new (paths);
@@ -107,7 +108,7 @@ internal sealed class PickFileClet : IClet<JsonNode?>
             arr.Add ((JsonNode)p);
         }
 
-        return new () { Status = CletRunStatus.Ok, Value = arr };
+        return new (CommandStatus.Ok, arr, null, null);
 
     }
 }

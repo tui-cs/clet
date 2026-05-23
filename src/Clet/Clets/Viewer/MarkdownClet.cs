@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Terminal.Gui.App;
+using Terminal.Gui.Cli;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -8,15 +9,15 @@ using Command = Terminal.Gui.Input.Command;
 
 namespace Clet;
 
-internal sealed class MarkdownClet : IViewerClet
+internal sealed class MarkdownClet : IViewerCommand
 {
     public string PrimaryAlias => "md";
     public IReadOnlyList<string> Aliases => ["md", "markdown"];
     public string Description => "Browse and render Markdown files with link navigation and syntax highlighting.";
-    public CletKind Kind => CletKind.Viewer;
+    public CommandKind Kind => CommandKind.Viewer;
     public Type ResultType => typeof (void);
 
-    public IReadOnlyList<CletOptionDescriptor> Options =>
+    public IReadOnlyList<CommandOptionDescriptor> Options =>
     [
         new ("theme", "t", typeof (string),
             $"Syntax-highlighting theme. Available: {string.Join (", ", Enum.GetNames<ThemeName> ())}",
@@ -31,27 +32,28 @@ internal sealed class MarkdownClet : IViewerClet
 
     public bool AcceptsPositionalArgs => true;
 
-    public async Task<CletRunResult> RunAsync (
+    public async Task<CommandResult> RunAsync (
         IApplication app,
-        string? content,
-        CletRunOptions options,
+        string? initial,
+        CommandRunOptions options,
         CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, null, null, null);
         }
 
         // Resolve content: file args → inline content → stdin → error
         TextReader? stdinReader = Console.IsInputRedirected ? Console.In : null;
-        MarkdownContentResolver.ResolveResult resolved = MarkdownContentResolver.Resolve (content, options, stdinReader);
+        MarkdownContentResolver.ResolveResult resolved = MarkdownContentResolver.Resolve (initial, options, stdinReader);
 
         if (!resolved.IsSuccess)
         {
-            return new () { Status = CletRunStatus.Error, ErrorCode = resolved.ErrorCode, ErrorMessage = resolved.ErrorMessage };
+            return new (CommandStatus.Error, null, resolved.ErrorCode, resolved.ErrorMessage);
         }
 
         List<string> files = resolved.Files;
+        string? content = initial;
 
         if (resolved.Content is not null)
         {
@@ -62,20 +64,21 @@ internal sealed class MarkdownClet : IViewerClet
         string? currentFileDir = files.Count > 0 ? Path.GetDirectoryName (Path.GetFullPath (files[0])) : null;
 
         // File access policy for link navigation (reuse the same confinement as file loading)
+        IReadOnlyList<string> allowedFiles = options.GetExtensionList ("allow-file");
         FileAccessPolicy linkPolicy = new (
             Directory.GetCurrentDirectory (),
-            options.AllowedFiles,
-            options.AllowBinary);
+            allowedFiles.Count > 0 ? allowedFiles : null,
+            options.HasExtension ("allow-binary"));
 
         // Browser mode
-        bool browseMode = !options.NoBrowse;
+        bool browseMode = !options.HasExtension ("no-browse");
         string? currentFile = files.Count > 0 ? Path.GetFullPath (files[0]) : null;
         BrowseBar? browseBar = null;
 
         // Parse --theme option
         ThemeName syntaxTheme = ThemeName.DarkPlus;
 
-        if (options.CletOptions?.TryGetValue ("theme", out string? themeStr) == true
+        if (options.CommandOptions.TryGetValue ("theme", out string? themeStr)
             && Enum.TryParse (themeStr, ignoreCase: true, out ThemeName parsed))
         {
             syntaxTheme = parsed;
@@ -270,15 +273,15 @@ internal sealed class MarkdownClet : IViewerClet
         }
         catch (OperationCanceledException)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, null, null, null);
         }
 
         if (cancellationToken.IsCancellationRequested)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, null, null, null);
         }
 
-        return new () { Status = CletRunStatus.Ok };
+        return new (CommandStatus.Ok, null, null, null);
 
         void LoadFile (string filePath, string? fragment = null)
         {

@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Terminal.Gui.App;
+using Terminal.Gui.Cli;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -7,25 +8,25 @@ using TgAttribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Clet;
 
-internal sealed class AttributePickerClet : IClet<JsonObject?>
+internal sealed class AttributePickerClet : ICliCommand<JsonObject?>
 {
     public string PrimaryAlias => "attribute-picker";
     public IReadOnlyList<string> Aliases => ["attribute-picker", "attribute"];
     public string Description => "Prompts for text attributes (foreground, background, style) and returns a JSON object.";
-    public CletKind Kind => CletKind.Input;
+    public CommandKind Kind => CommandKind.Input;
     public Type ResultType => typeof (JsonObject);
 
-    public IReadOnlyList<CletOptionDescriptor> Options => [];
+    public IReadOnlyList<CommandOptionDescriptor> Options => [];
 
-    public async Task<CletRunResult<JsonObject?>> RunAsync (
+    public async Task<CommandResult<JsonObject?>> RunAsync (
         IApplication app,
         string? initial,
-        CletRunOptions options,
+        CommandRunOptions options,
         CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
         AttributePicker picker = new ();
@@ -54,19 +55,19 @@ internal sealed class AttributePickerClet : IClet<JsonObject?>
         }
         catch (OperationCanceledException)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
         if (cancellationToken.IsCancellationRequested)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, default, null, null);
         }
 
         TgAttribute? result = wrapper.Result;
 
         if (result is not { } attr)
         {
-            return new () { Status = CletRunStatus.Ok, Value = null };
+            return new (CommandStatus.Ok, null, null, null);
         }
 
         Color fg = attr.Foreground;
@@ -79,6 +80,6 @@ internal sealed class AttributePickerClet : IClet<JsonObject?>
             ["style"] = attr.Style.ToString ().ToLowerInvariant (),
         };
 
-        return new () { Status = CletRunStatus.Ok, Value = obj };
+        return new (CommandStatus.Ok, obj, null, null);
     }
 }

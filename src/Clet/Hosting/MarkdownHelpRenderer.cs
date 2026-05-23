@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text;
 using Terminal.Gui.App;
+using Terminal.Gui.Cli;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Drivers;
 using Terminal.Gui.ViewBase;
@@ -150,16 +151,16 @@ internal static class MarkdownHelpRenderer
     }
 
     /// <summary>
-    /// Generates a Markdown string for a clet's help page from its <see cref="IClet"/> metadata.
+    /// Generates a Markdown string for a clet's help page from its <see cref="ICliCommand"/> metadata.
     /// </summary>
-    public static string BuildAliasHelpMarkdown (IClet clet)
+    public static string BuildAliasHelpMarkdown (ICliCommand clet)
     {
         StringBuilder sb = new ();
         sb.AppendLine ($"# clet {clet.PrimaryAlias}");
         sb.AppendLine ();
         sb.AppendLine (clet.Description);
         sb.AppendLine ();
-        sb.AppendLine ($"**Kind:** {(clet.Kind == CletKind.Input ? "input" : "viewer")}");
+        sb.AppendLine ($"**Kind:** {(clet.Kind == CommandKind.Input ? "input" : "viewer")}");
         sb.AppendLine ();
         sb.AppendLine ($"**Result type:** {ResultTypeName (clet.ResultType)}");
 
@@ -177,7 +178,7 @@ internal static class MarkdownHelpRenderer
             sb.AppendLine ("| Option | Type | Description | Required | Default |");
             sb.AppendLine ("|--------|------|-------------|----------|---------|");
 
-            foreach (CletOptionDescriptor opt in clet.Options)
+            foreach (CommandOptionDescriptor opt in clet.Options)
             {
                 string name = opt.ShortName is null
                     ? $"`--{opt.Name}`"
@@ -203,7 +204,7 @@ internal static class MarkdownHelpRenderer
     /// <summary>
     /// Generates a Markdown table of all registered clets with aliases shown inline.
     /// </summary>
-    public static string BuildCletTableMarkdown (ICletRegistry registry)
+    public static string BuildCletTableMarkdown (ICommandRegistry registry)
     {
         StringBuilder sb = new ();
         sb.AppendLine ("## Available Clets");
@@ -211,7 +212,7 @@ internal static class MarkdownHelpRenderer
         sb.AppendLine ("| Alias | Description | Options |");
         sb.AppendLine ("|-------|-------------|---------|");
 
-        foreach (IClet clet in registry.All)
+        foreach (ICliCommand clet in registry.All)
         {
             string aliases = clet.Aliases.Count <= 1
                 ? $"[{clet.PrimaryAlias}](clet:help:{clet.PrimaryAlias})"
@@ -225,11 +226,11 @@ internal static class MarkdownHelpRenderer
         return sb.ToString ();
     }
 
-    private static string BuildOptionsColumn (IClet clet)
+    private static string BuildOptionsColumn (ICliCommand clet)
     {
         List<string> parts = new ();
 
-        foreach (CletOptionDescriptor opt in clet.Options)
+        foreach (CommandOptionDescriptor opt in clet.Options)
         {
             parts.Add ($"`--{opt.Name}`");
         }
@@ -242,5 +243,5 @@ internal static class MarkdownHelpRenderer
         return parts.Count == 0 ? "" : string.Join (", ", parts);
     }
 
-    private static string ResultTypeName (Type type) => CletTypeNames.WireName (type);
+    private static string ResultTypeName (Type type) => TypeNames.WireName (type);
 }

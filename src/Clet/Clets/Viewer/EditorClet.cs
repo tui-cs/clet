@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Text;
 using Terminal.Gui.App;
+using Terminal.Gui.Cli;
 using Terminal.Gui.Configuration;
 using Terminal.Gui.Document;
 using Terminal.Gui.Document.Folding;
@@ -18,7 +19,7 @@ using Command = Terminal.Gui.Input.Command;
 
 namespace Clet;
 
-internal sealed class EditorClet : IViewerClet
+internal sealed class EditorClet : IViewerCommand
 {
     // Match ted: small files load fully before first paint; larger files stream after the UI appears.
     private const long SynchronousLoadMaxBytes = 1024 * 1024;
@@ -29,38 +30,40 @@ internal sealed class EditorClet : IViewerClet
     public string PrimaryAlias => "edit";
     public IReadOnlyList<string> Aliases => ["edit", "editor"];
     public string Description => "Edit text files with menus, undo/redo, find/replace, and glob support.";
-    public CletKind Kind => CletKind.Viewer;
+    public CommandKind Kind => CommandKind.Viewer;
     public Type ResultType => typeof (void);
     public bool AcceptsPositionalArgs => true;
 
-    public IReadOnlyList<CletOptionDescriptor> Options =>
+    public IReadOnlyList<CommandOptionDescriptor> Options =>
     [
         new ("readonly", "r", typeof (bool),
             "Open the file in read-only mode.",
             false, "false")
     ];
 
-    public async Task<CletRunResult> RunAsync (
+    public async Task<CommandResult> RunAsync (
         IApplication app,
-        string? content,
-        CletRunOptions options,
+        string? initial,
+        CommandRunOptions options,
         CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, null, null, null);
         }
 
         // --- Expand positional args (glob patterns + explicit paths) ---
 
         List<string> files = [];
         string cwd = Directory.GetCurrentDirectory ();
-        IReadOnlyList<string> args = options.Arguments ?? [];
+        IReadOnlyList<string> args = options.Arguments;
         string? pendingDeniedPath = null; // set when access is denied; drives dialog
+
+        IReadOnlyList<string> allowedFiles = options.GetExtensionList ("allow-file");
 
         FileAccessPolicy BuildPolicy (IReadOnlyList<string>? extraAllowed = null)
         {
-            IReadOnlyList<string>? merged = FileAccessPolicy.MergeWithConfigPaths (options.AllowedFiles);
+            IReadOnlyList<string>? merged = FileAccessPolicy.MergeWithConfigPaths (allowedFiles.Count > 0 ? allowedFiles : null);
 
             if (extraAllowed is { Count: > 0 })
             {
@@ -69,7 +72,7 @@ internal sealed class EditorClet : IViewerClet
                     : [.. extraAllowed];
             }
 
-            return new (cwd, merged, options.AllowBinary, true);
+            return new (cwd, merged, options.HasExtension ("allow-binary"), true);
         }
 
         if (args.Count > 0)
@@ -114,7 +117,7 @@ internal sealed class EditorClet : IViewerClet
         string? savedText;
         bool accessDialogCancelled = false;
 
-        bool readOnly = options.CletOptions?.TryGetValue ("readonly", out string? roVal) == true
+        bool readOnly = options.CommandOptions.TryGetValue ("readonly", out string? roVal)
                         && roVal is "true" or "1";
 
         // --- Build the UI ---
@@ -1306,10 +1309,10 @@ internal sealed class EditorClet : IViewerClet
             {
                 LoadFile (filePath);
             }
-            else if (content is not null)
+            else if (initial is not null)
             {
-                editor.Document = new TextDocument (content);
-                lastFileByteSize = Encoding.UTF8.GetByteCount (content);
+                editor.Document = new TextDocument (initial);
+                lastFileByteSize = Encoding.UTF8.GetByteCount (initial);
                 lastStatusVerb = "Loaded";
                 savedText = string.Empty;
                 InstallFolding ();
@@ -1329,15 +1332,15 @@ internal sealed class EditorClet : IViewerClet
         }
         catch (OperationCanceledException)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, null, null, null);
         }
 
         if (cancellationToken.IsCancellationRequested || accessDialogCancelled)
         {
-            return new () { Status = CletRunStatus.Cancelled };
+            return new (CommandStatus.Cancelled, null, null, null);
         }
 
-        return new () { Status = CletRunStatus.Ok };
+        return new (CommandStatus.Ok, null, null, null);
 
         void OnEditorViewportChanged (object? sender, DrawEventArgs e)
         {

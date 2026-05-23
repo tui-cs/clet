@@ -1,27 +1,28 @@
 using System.Globalization;
 using Terminal.Gui.App;
+using Terminal.Gui.Cli;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
 
 namespace Clet;
 
-internal sealed class TimeClet : IClet<string?>
+internal sealed class TimeClet : ICliCommand<string?>
 {
     public string PrimaryAlias => "time";
     public IReadOnlyList<string> Aliases => ["time"];
     public string Description => "Prompts for a time and returns an ISO-8601 time string (HH:MM:SS).";
-    public CletKind Kind => CletKind.Input;
+    public CommandKind Kind => CommandKind.Input;
     public Type ResultType => typeof (string);
 
-    public IReadOnlyList<CletOptionDescriptor> Options => [];
+    public IReadOnlyList<CommandOptionDescriptor> Options => [];
 
-    public bool TryValidateInitial (string initial, CletRunOptions options)
+    public bool TryValidateInitial (string initial, CommandRunOptions options)
         => TimeSpan.TryParse (initial, CultureInfo.InvariantCulture, out _);
 
-    public async Task<CletRunResult<string?>> RunAsync (
+    public async Task<CommandResult<string?>> RunAsync (
         IApplication app,
         string? initial,
-        CletRunOptions options,
+        CommandRunOptions options,
         CancellationToken cancellationToken)
     {
         TimeEditor editor = new ();
@@ -45,7 +46,7 @@ internal sealed class TimeClet : IClet<string?>
             {
                 string? formatted = result?.ToString (@"hh\:mm\:ss", CultureInfo.InvariantCulture);
 
-                return new () { Status = CletRunStatus.Ok, Value = formatted };
+                return new (CommandStatus.Ok, formatted, null, null);
             });
     }
 }

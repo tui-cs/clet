@@ -1,3 +1,5 @@
+using Terminal.Gui.Cli;
+
 namespace Clet;
 
 /// <summary>
@@ -38,15 +40,16 @@ internal static class MarkdownContentResolver
     /// Reader for stdin content. Pass <c>Console.In</c> in production,
     /// or a <see cref="StringReader"/> in tests. Pass <c>null</c> if stdin is not redirected.
     /// </param>
-    public static ResolveResult Resolve (string? inlineContent, CletRunOptions options, TextReader? stdinReader)
+    public static ResolveResult Resolve (string? inlineContent, CommandRunOptions options, TextReader? stdinReader)
     {
         // Priority 1: File arguments (with glob expansion)
         if (options.Arguments is { Count: > 0 } args)
         {
+            IReadOnlyList<string> allowedFiles = options.GetExtensionList ("allow-file");
             FileAccessPolicy policy = new (
                 Directory.GetCurrentDirectory (),
-                FileAccessPolicy.MergeWithConfigPaths (options.AllowedFiles),
-                options.AllowBinary);
+                FileAccessPolicy.MergeWithConfigPaths (allowedFiles.Count > 0 ? allowedFiles : null),
+                options.HasExtension ("allow-binary"));
 
             List<string> files = ExpandFiles (args, policy, out string? policyError);
 
