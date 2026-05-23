@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <RootNamespace>Terminal.Gui.Cli</RootNamespace>
+        <AssemblyName>Terminal.Gui.Cli</AssemblyName>
+        <IsAotCompatible>true</IsAotCompatible>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Terminal.Gui" Version="$(TerminalGuiVersion)" />
+    </ItemGroup>
+
+</Project>
