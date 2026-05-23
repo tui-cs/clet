@@ -1,0 +1,140 @@
+# Stage A Progress: Terminal.Gui.Cli Library Extraction
+
+## Status: Phases 1-6 Complete (Core Library Proven)
+
+## Overview
+
+Implementing Stage A of the Terminal.Gui.Cli library spec: extracting the hosting infrastructure from clet into a reusable class library at `src/Terminal.Gui.Cli/`.
+
+## Approach
+
+**Test-first**: Write tests for the library's public API surface against the spec before implementing. Then implement to make tests pass.
+
+## Phases
+
+### Phase 1: Project scaffolding ✅
+- [x] Create `src/Terminal.Gui.Cli/Terminal.Gui.Cli.csproj`
+- [x] Create `tests/Terminal.Gui.Cli.Tests/Terminal.Gui.Cli.Tests.csproj`
+- [x] Add both to `Clet.slnx`
+- [x] Add `AssemblyInfo.cs` with InternalsVisibleTo
+
+### Phase 2: Core Abstractions (test-first) ✅
+- [x] `CommandKind` enum
+- [x] `CommandStatus` enum
+- [x] `CommandOptionDescriptor` record
+- [x] `CommandResult` (non-generic + generic)
+- [x] `ICliCommand` interface
+- [x] `ICliCommand<TValue>` generic interface
+- [x] `IViewerCommand` interface
+- [x] `ICommandRegistry` interface
+- [x] `CommandRunOptions` class
+- [x] `GlobalOptionDescriptor` record
+
+### Phase 3: Registry & Exit Codes (test-first) ✅
+- [x] `CommandRegistry` implementation
+- [x] `ExitCodes` static class
+
+### Phase 4: JSON Envelope & Output (test-first) ✅
+- [x] `JsonEnvelope` class
+- [x] `CliJsonContext` source-generated
+- [x] `TypeNames` static class
+- [x] `ResultWriter` static class
+
+### Phase 5: Arg Parser (test-first — rewrite from scratch) ✅
+- [x] Data-driven parser consuming `GlobalOptionDescriptor` registrations
+- [x] Framework-owned flags (--json, --initial, --timeout, etc.)
+- [x] Consumer-registered global options
+- [x] Per-command option validation
+- [x] `--option=value` syntax support
+- [x] `--` separator (end of options)
+- [x] Unknown option rejection (exit 2)
+
+### Phase 6: Host & Dispatcher ✅
+- [x] `CliHostOptions` class
+- [x] `CliHost` class (with TUI dispatch, cancellation, ConfigurationManager)
+- [x] `InputCommandRunner` helper
+- [x] `OpenCliWriter` (hand-built OpenCLI JSON from registry metadata)
+- [x] `IHelpProvider` interface
+- [x] `MetadataHelpProvider` (auto-generated from registry)
+
+### Phase 7: Utilities ✅
+- [x] `TerminalEscapeSanitizer`
+
+### Phase 8: Built-in Commands 🔲 (deferred — not needed to prove the API)
+- [ ] `HelpCommand` (IViewerCommand — TUI mode)
+- [ ] `AgentGuideCommand` (IViewerCommand)
+- [ ] `EmbeddedMarkdownHelpProvider`
+- [ ] `MarkdownRenderer` (depends on TG markdown-to-ANSI API)
+
+### Phase 9: clet migration 🔲 (deferred — Phase 10 in original plan)
+- [ ] Add `<ProjectReference>` from clet to the library
+- [ ] Refactor clet to consume library types
+- [ ] Delete duplicated hosting code
+- [ ] All existing clet tests must pass
+
+## Test Summary
+
+- **95 tests** passing in `Terminal.Gui.Cli.Tests`
+- **445 tests** passing in existing `Clet.UnitTests` (unaffected)
+- **0 warnings**, **0 errors** across full solution build
+
+## Decisions & Learnings
+
+| # | Decision/Learning | Rationale |
+|---|---|---|
+| 1 | `CommandResult` is a `readonly record struct` (not class) | Matches spec §5.1. Value-type avoids allocations on hot path. Both generic and non-generic in same file since they're tightly coupled record structs. |
+| 2 | `ICliCommand<TValue>` in separate file `ICliCommandGeneric.cs` | One-type-per-file rule. Named distinctly from `ICliCommand.cs`. |
+| 3 | `<alias> --help` interception happens BEFORE ArgParser.Parse() | The parser would reject `--help` as an unknown per-command option. Must intercept `args[1] is "help"/"--help"/"-h"` early in CliHost.RunAsync(). |
+| 4 | `CliHost` owns the `CommandRegistry` instance (constructs it internally) | Consumers register commands via `host.Registry.Register(cmd)` after construction. This matches spec §5.5 API shape. |
+| 5 | Deferred `HelpCommand`/`AgentGuideCommand` TUI viewers | These require Terminal.Gui Views (markdown rendering, interactive help). The API is proven without them; consumers can register their own. `MetadataHelpProvider` handles --help output. |
+| 6 | `OpenCliWriter` uses hand-built StringBuilder JSON | AOT-friendly per spec §8.3. No JsonSerializerContext needed for the introspection format. |
+
+## Spec Discrepancies / Feedback
+
+| # | Issue | Notes |
+|---|---|---|
+| 1 | Spec §5.5 shows `ReplaceBuiltInCommand` on `CliHostOptions` | Not implemented yet since built-in commands (HelpCommand, AgentGuideCommand) are deferred. Will add when those are implemented. |
+| 2 | `MarkdownRenderer` utility deferred | Depends on TG exposing markdown-to-ANSI rendering API. The library compiles and works without it. |
+| 3 | C# `\x` escape greedy parsing | When writing test literals like `"\x1bb"`, the `\x` consumes up to 4 hex digits, so `b` becomes part of the escape. Must use `\u001b` + string concatenation for hex escapes followed by hex characters in tests. |
+
+## Files Created (25 source + 8 test)
+
+### Library (`src/Terminal.Gui.Cli/`)
+- `Terminal.Gui.Cli.csproj`
+- `Properties/AssemblyInfo.cs`
+- `Abstractions/CommandKind.cs`
+- `Abstractions/CommandStatus.cs`
+- `Abstractions/CommandOptionDescriptor.cs`
+- `Abstractions/CommandResult.cs`
+- `Abstractions/ICliCommand.cs`
+- `Abstractions/ICliCommandGeneric.cs`
+- `Abstractions/IViewerCommand.cs`
+- `Abstractions/ICommandRegistry.cs`
+- `Abstractions/CommandRunOptions.cs`
+- `Registry/CommandRegistry.cs`
+- `Hosting/GlobalOptionDescriptor.cs`
+- `Hosting/ExitCodes.cs`
+- `Hosting/ArgParser.cs`
+- `Hosting/CliHostOptions.cs`
+- `Hosting/CliHost.cs`
+- `Hosting/InputCommandRunner.cs`
+- `Output/JsonEnvelope.cs`
+- `Output/CliJsonContext.cs`
+- `Output/TypeNames.cs`
+- `Output/ResultWriter.cs`
+- `Output/OpenCliWriter.cs`
+- `Help/IHelpProvider.cs`
+- `Help/MetadataHelpProvider.cs`
+- `Security/TerminalEscapeSanitizer.cs`
+
+### Tests (`tests/Terminal.Gui.Cli.Tests/`)
+- `Terminal.Gui.Cli.Tests.csproj`
+- `StubCommand.cs`
+- `CommandRegistryTests.cs`
+- `ExitCodesTests.cs`
+- `TypeNamesTests.cs`
+- `JsonEnvelopeTests.cs`
+- `TerminalEscapeSanitizerTests.cs`
+- `CommandRunOptionsTests.cs`
+- `ArgParserTests.cs`
+- `CliHostTests.cs`

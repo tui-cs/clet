@@ -1,8 +1,10 @@
 <Solution>
   <Project Path="src/Clet/Clet.csproj" />
+  <Project Path="src/Terminal.Gui.Cli/Terminal.Gui.Cli.csproj" />
   <Project Path="tests/Clet.ConfigTests/Clet.ConfigTests.csproj" />
   <Project Path="tests/Clet.UnitTests/Clet.UnitTests.csproj" />
   <Project Path="tests/Clet.IntegrationTests/Clet.IntegrationTests.csproj" />
   <Project Path="tests/Clet.SmokeTests/Clet.SmokeTests.csproj" />
   <Project Path="tests/Clet.UITests/Clet.UITests.csproj" />
+  <Project Path="tests/Terminal.Gui.Cli.Tests/Terminal.Gui.Cli.Tests.csproj" />
 </Solution>
