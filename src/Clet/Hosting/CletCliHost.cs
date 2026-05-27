@@ -29,7 +29,7 @@ internal sealed class CletCliHost
     public ICommandRegistry Registry { get; }
 
     public async Task<int> RunAsync (
-        string [] args,
+        string[] args,
         CancellationToken cancellationToken = default,
         TextWriter? stdout = null,
         TextWriter? stderr = null)
@@ -73,7 +73,7 @@ internal sealed class CletCliHost
     }
 
     private async Task<int> DispatchCommandAsync (
-        string [] args,
+        string[] args,
         ICliCommand command,
         CancellationToken cancellationToken,
         TextWriter stdout,
