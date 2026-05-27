@@ -8,7 +8,7 @@ internal static class Program
     {
         CletLogging.Initialize ();
 
-        CliHost host = new (options =>
+        CletCliHost host = new (options =>
         {
             options.ApplicationName = "clet";
             options.Version = VersionInfo.GetCletVersion ();
