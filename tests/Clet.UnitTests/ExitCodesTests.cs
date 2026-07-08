@@ -22,16 +22,13 @@ public class ExitCodesTests
     [InlineData ((int)CommandStatus.Cancelled, null, 130)]
     [InlineData ((int)CommandStatus.NoResult, null, 1)]
     [InlineData ((int)CommandStatus.Error, "validation", 65)]
-    // NOTE: spec requires input-too-large → 65, but the package maps all unknown error codes to 2.
-    // Tracked upstream: Terminal.Gui.Cli needs a custom exit code mapper or treating
-    // "input-too-large" as a validation error. See PR #185 review discussion.
-    [InlineData ((int)CommandStatus.Error, "input-too-large", 2)]
+    [InlineData ((int)CommandStatus.Error, "input-too-large", 65)]
     [InlineData ((int)CommandStatus.Error, "io", 74)]
     [InlineData ((int)CommandStatus.Error, "anything-else", 2)]
     public void FromResult_MapsStatusToExit (int statusInt, string? errorCode, int expected)
     {
         CommandResult result = new ((CommandStatus)statusInt, null, errorCode, null);
 
-        Assert.Equal (expected, ExitCodes.FromResult (result));
+        Assert.Equal (expected, CletExitCodes.FromResult (result));
     }
 }

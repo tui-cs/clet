@@ -109,7 +109,7 @@ public class CletSmokeTests
         (int exit, string stdout, _) = await CletProcess.RunAsync (
             ["md", "--json"], stdin: oversized);
 
-        Assert.Equal (2, exit);
+        Assert.Equal (65, exit);
         Assert.Contains ("input-too-large", stdout);
         Assert.Contains ("\"status\":\"error\"", stdout);
     }
