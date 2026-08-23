@@ -302,20 +302,64 @@ internal static class EditorSettings
                 continue;
             }
 
-            // Check if we're at the end of a line comment.
-            // Walk back to find if this line starts with "//".
+            // If this position lies inside a line comment (whole-line or trailing
+            // after a value), skip to just before the comment's "//" marker so the
+            // comma lands after the value, not inside the comment.
             int lineStart = text.LastIndexOf ('\n', i) + 1;
-            string line = text[lineStart..(i + 1)].TrimStart ();
+            int commentStart = FindLineCommentStart (text, lineStart, i);
 
-            if (line.StartsWith ("//", StringComparison.Ordinal))
+            if (commentStart >= 0)
             {
-                // This entire line is a comment — skip to before it.
-                i = lineStart - 1;
+                i = commentStart - 1;
 
                 continue;
             }
 
             return i;
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Finds the absolute index of the first <c>//</c> comment marker on the line
+    /// starting at <paramref name="lineStart"/>, ignoring markers inside string
+    /// literals (e.g. URLs). Only markers at or before <paramref name="limit"/>
+    /// count. Returns -1 when <paramref name="limit"/> is not inside a line comment.
+    /// </summary>
+    private static int FindLineCommentStart (string text, int lineStart, int limit)
+    {
+        bool inString = false;
+
+        for (int j = lineStart; j <= limit; j++)
+        {
+            char c = text[j];
+
+            if (inString)
+            {
+                if (c == '\\')
+                {
+                    j++;
+                }
+                else if (c == '"')
+                {
+                    inString = false;
+                }
+
+                continue;
+            }
+
+            if (c == '"')
+            {
+                inString = true;
+
+                continue;
+            }
+
+            if (c == '/' && j + 1 < text.Length && text[j + 1] == '/')
+            {
+                return j;
+            }
         }
 
         return -1;

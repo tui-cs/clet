@@ -280,6 +280,64 @@ public class EditorSettingsTests : IDisposable
         Assert.Contains ("\"LineNumbers\": false", result);
     }
 
+    // Claude - Fable 5
+    [Fact]
+    public void Save_SectionEndsWithTrailingLineComment_ProducesValidJsonc ()
+    {
+        // Arrange — the section's last entry carries a trailing line comment and
+        // most managed keys are missing, so Save must insert them after it.
+        File.WriteAllText (
+            _configPath,
+            """
+            {
+              "EditorSettings": {
+                "LineNumbers": true // show line numbers
+              }
+            }
+            """);
+
+        EditorSettings.LineNumbers = false;
+
+        // Act
+        EditorSettings.Save (_configPath);
+
+        // Assert — the file still parses as JSONC (the separating comma must land
+        // after the value, not inside the comment) and carries all managed keys.
+        JsonObject section = ReadEditorSection (_configPath);
+
+        Assert.False ((bool)section["LineNumbers"]!);
+        Assert.Equal (EditorSettings.ManagedKeys.Count, section.Count);
+        Assert.Contains ("// show line numbers", File.ReadAllText (_configPath));
+    }
+
+    // Claude - Fable 5
+    [Fact]
+    public void Save_TopLevelEndsWithTrailingLineComment_ProducesValidJsonc ()
+    {
+        // Arrange — no EditorSettings section yet; the last top-level value has a
+        // trailing line comment, so the inserted section needs a comma after it.
+        File.WriteAllText (
+            _configPath,
+            """
+            {
+              "Theme": "Dark" // preferred theme
+            }
+            """);
+
+        EditorSettings.IndentSize = 3;
+
+        // Act
+        EditorSettings.Save (_configPath);
+
+        // Assert — the file still parses as JSONC and both the old key and the
+        // new section are present.
+        JsonObject root = ReadRoot (_configPath);
+
+        Assert.Equal ("Dark", (string)root["Theme"]!);
+        Assert.Equal (3, (int)ReadEditorSection (_configPath)["IndentSize"]!);
+        Assert.Contains ("// preferred theme", File.ReadAllText (_configPath));
+    }
+
     [Fact]
     public void RoundTrip_Load_RestoresPersistedValues ()
     {
