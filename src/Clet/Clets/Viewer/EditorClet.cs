@@ -128,7 +128,7 @@ internal sealed class EditorClet : IViewerCommand
             BorderStyle = LineStyle.None
         };
 
-        // --- Settings are loaded by ConfigurationManager via [ConfigurationProperty] ---
+        // --- Settings are loaded from the "EditorSettings" config section via CletConfiguration ---
 
         Editor editor = new ()
         {

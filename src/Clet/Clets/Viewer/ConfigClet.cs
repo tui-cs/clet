@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.VisualBasic;
 using Terminal.Gui.App;
 using Terminal.Gui.Configuration;
@@ -43,7 +44,11 @@ internal sealed class ConfigClet : IViewerCommand
         string configPath = GetConfigPath ();
         EnsureConfigFile (configPath);
 
-        string configText = await File.ReadAllTextAsync (configPath, cancellationToken);
+        // ConfigureAwait (false): resuming on an ambient SynchronizationContext and
+        // then calling IApplication.RunAsync deadlocks in Terminal.Gui 2.5.0-preview
+        // (the run loop never completes; observed under the xunit sync context).
+        // Upstream issue tracked with tui-cs/Terminal.Gui#5416 validation.
+        string configText = await File.ReadAllTextAsync (configPath, cancellationToken).ConfigureAwait (false);
 
         // Check for pre-existing config errors to show on launch
         string? launchError = ValidateConfig (configPath);
@@ -193,34 +198,38 @@ internal sealed class ConfigClet : IViewerCommand
                 return;
             }
 
-            // Reload config — catch ALL exceptions since Apply can throw
-            // KeyNotFoundException (bad theme), JsonException (bad syntax), etc.
+            // Check JSON syntax first so errors carry line/column info, then
+            // reload the MEC-based configuration. The builder never throws on
+            // bad sources — per-source errors are collected in TuiJsonErrors
+            // and the library falls back to defaults on its own.
             try
             {
-                ConfigurationManager.ThrowOnJsonErrors = true;
-                ConfigurationManager.Load (ConfigLocations.All);
-                ConfigurationManager.Apply ();
-                Logging.Information ("ConfigClet: config reloaded and applied successfully");
-                statusMessage.Title = "Saved ✓";
+                ParseJsonc (editor.Document?.Text ?? string.Empty);
             }
             catch (JsonException jsonEx)
             {
-                Logging.Error ($"ConfigClet: config reload threw JsonException: {jsonEx.Message}");
-                ResetConfigToDefaults ();
+                Logging.Error ($"ConfigClet: config has a JSON syntax error: {jsonEx.Message}");
                 ShowJsonErrorDialog (jsonEx);
                 statusMessage.Title = "Saved with errors";
+
+                return;
             }
-            catch (Exception applyEx)
+
+            CletConfiguration.Reload ();
+            string? applyError = ConsumeConfigErrors ()
+                                 ?? CheckUnknownTheme (editor.Document?.Text ?? string.Empty);
+
+            if (applyError is not null)
             {
-                Logging.Error ($"ConfigClet: config reload threw {applyEx.GetType ().Name}: {applyEx.Message}");
-                ResetConfigToDefaults ();
-                ShowConfigErrorDialog (applyEx);
+                Logging.Error ($"ConfigClet: config reload reported: {applyError}");
+                ShowConfigErrorDialog (applyError);
                 statusMessage.Title = "Saved with errors";
+
+                return;
             }
-            finally
-            {
-                ConfigurationManager.ThrowOnJsonErrors = false;
-            }
+
+            Logging.Information ("ConfigClet: config reloaded and applied successfully");
+            statusMessage.Title = "Saved ✓";
         }
 
         void ShowJsonErrorDialog (JsonException ex)
@@ -260,12 +269,12 @@ internal sealed class ConfigClet : IViewerCommand
             editor.SetFocus ();
         }
 
-        void ShowConfigErrorDialog (Exception ex)
+        void ShowConfigErrorDialog (string message)
         {
             MessageBox.ErrorQuery (
                 app,
                 "Configuration Error",
-                ex.Message,
+                message,
                 Terminal.Gui.Resources.Strings.btnOk);
 
             editor.SetFocus ();
@@ -339,9 +348,10 @@ internal sealed class ConfigClet : IViewerCommand
     }
 
     /// <summary>
-    /// Validates the config by attempting a Load + Apply cycle.
-    /// Returns an error message if something is wrong, or null if valid.
-    /// On error, resets ConfigurationManager to hard-coded defaults so the UI can still render.
+    /// Validates the config by checking JSON syntax, then reloading and re-applying
+    /// the MEC-based configuration. Returns an error message if something is wrong,
+    /// or null if valid. Bad sources never poison global state — the configuration
+    /// builder skips them and falls back to library defaults on its own.
     /// </summary>
     internal static string? ValidateConfig (string configPath)
     {
@@ -352,17 +362,10 @@ internal sealed class ConfigClet : IViewerCommand
 
         try
         {
-            ConfigurationManager.ThrowOnJsonErrors = true;
-            ConfigurationManager.Load (ConfigLocations.All);
-            ConfigurationManager.Apply ();
-
-            return null;
+            ParseJsonc (File.ReadAllText (configPath));
         }
         catch (JsonException ex)
         {
-            // Reset to safe defaults so the UI can render
-            ResetConfigToDefaults ();
-
             int line = ex.LineNumber.HasValue ? (int)ex.LineNumber.Value + 1 : 0;
             int col = ex.BytePositionInLine.HasValue ? (int)ex.BytePositionInLine.Value + 1 : 0;
 
@@ -378,35 +381,106 @@ internal sealed class ConfigClet : IViewerCommand
         }
         catch (Exception ex)
         {
-            // Reset to safe defaults so the UI can render
-            ResetConfigToDefaults ();
-
             return ex.Message;
         }
-        finally
+
+        // Unknown themes are silently ignored by the MEC-based loader (2.5+),
+        // so check the theme name explicitly to keep the pre-2.5 UX of
+        // surfacing a bad "Theme" value to the user.
+        string? themeError = CheckUnknownTheme (File.ReadAllText (configPath));
+
+        if (themeError is not null)
         {
-            ConfigurationManager.ThrowOnJsonErrors = false;
+            return themeError;
         }
+
+        // Syntax is valid — reload and re-apply; per-source errors are collected
+        // in TuiJsonErrors instead of thrown.
+        CletConfiguration.Reload ();
+
+        return ConsumeConfigErrors ();
     }
 
-    /// <summary>Resets ConfigurationManager to hard-coded defaults after a bad config poisons global state.</summary>
-    private static void ResetConfigToDefaults ()
+    /// <summary>
+    /// Returns an error message when the config <paramref name="text"/> selects a
+    /// theme that is not in the theme catalog, or null when the theme is valid or
+    /// absent. The MEC-based loader ignores unknown theme names silently.
+    /// </summary>
+    private static string? CheckUnknownTheme (string text)
     {
+        string? theme = null;
+
         try
         {
-            ConfigurationManager.ThrowOnJsonErrors = false;
-            ConfigurationManager.Load (ConfigLocations.HardCoded);
-            ConfigurationManager.Apply ();
+            JsonNode? root = JsonNode.Parse (
+                text,
+                documentOptions: new ()
+                {
+                    CommentHandling = JsonCommentHandling.Skip,
+                    AllowTrailingCommas = true,
+                });
+
+            if (root is JsonObject obj && obj["Theme"] is JsonValue value)
+            {
+                value.TryGetValue (out theme);
+            }
         }
-        catch
+        catch (JsonException)
         {
-            // Best-effort reset — if even this fails, the UI will use whatever state remains.
+            // Syntax problems are reported by the caller's syntax check.
+            return null;
         }
+
+        if (string.IsNullOrEmpty (theme))
+        {
+            return null;
+        }
+
+        ImmutableList<string> themeNames = ThemeManager.GetThemeNames ();
+
+        if (themeNames.Any (n => string.Equals (n, theme, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        return $"Unknown theme \"{theme}\". Available themes: {string.Join (", ", themeNames)}.";
+    }
+
+    /// <summary>
+    /// Parses <paramref name="text"/> as JSONC (comments and trailing commas allowed)
+    /// purely for syntax validation. Throws <see cref="JsonException"/> with
+    /// line/column info on failure.
+    /// </summary>
+    private static void ParseJsonc (string text)
+    {
+        using JsonDocument _ = JsonDocument.Parse (
+            text,
+            new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true,
+            });
+    }
+
+    /// <summary>
+    /// Drains <see cref="TuiJsonErrors"/> (logging each entry) and returns the
+    /// collected messages as a single string, or null when there were none.
+    /// </summary>
+    private static string? ConsumeConfigErrors ()
+    {
+        IReadOnlyList<string> errors = TuiJsonErrors.GetErrors ();
+
+        // Print logs the errors via Logging and clears the list.
+        TuiJsonErrors.Print ();
+
+        return errors.Count > 0 ? string.Join ("\n", errors) : null;
     }
 
     /// <summary>
     /// Annotated default config content that explains common settings.
-    /// JSON with comments (JSONC) — Terminal.Gui's ConfigurationManager supports // comments.
+    /// JSON with comments (JSONC) — Terminal.Gui's configuration loader supports // comments.
+    /// Settings use the nested shape required by Terminal.Gui 2.5+ (dotted
+    /// top-level keys are treated as legacy and skipped).
     /// </summary>
     internal const string DefaultConfigContent =
         """
@@ -415,7 +489,7 @@ internal sealed class ConfigClet : IViewerCommand
           //  clet configuration — ~/.tui/clet.config.json
           //
           //  This file configures Terminal.Gui settings for the `clet` tool.
-          //  Terminal.Gui's ConfigurationManager loads this automatically.
+          //  Terminal.Gui loads this automatically (nested settings shape, 2.5+).
           //
           //  Edit and save (Ctrl+S) to apply changes live.
           //  See: https://tui-cs.github.io/Terminal.Gui/docs/config.html
@@ -427,26 +501,27 @@ internal sealed class ConfigClet : IViewerCommand
           // ─── General Settings ─────────────────────────────────────────────────
 
           // Separator character for key bindings displayed in the UI (e.g. "Ctrl+S")
-          // "Key.Separator": "+",
+          // "Key": { "Separator": "+" },
 
-          // Set to true to force 16-color mode (useful for minimal terminal emulators)
-          // "Driver.Force16Colors": false,
+          // Set Force16Colors to true to force 16-color mode (useful for minimal
+          // terminal emulators)
+          // "Driver": { "Force16Colors": false },
 
-          // Set to true to disable mouse support entirely
-          // "Application.IsMouseDisabled": false,
+          // Set IsMouseDisabled to true to disable mouse support entirely
+          // "Application": { "IsMouseDisabled": false },
 
           // ─── Key Bindings ─────────────────────────────────────────────────────
           //
           // Key bindings can be customized per-view or globally. Common examples:
           //
-          //   "PopoverMenu.DefaultKey": "Shift+F10",
+          //   "PopoverMenu": { "DefaultKey": "Shift+F10" },
           //
           // Key names follow the pattern: Ctrl+<key>, Alt+<key>, Shift+<key>, F1–F12
           // Multiple modifiers: "Ctrl+Shift+S"
           //
           // See the schema reference for the full list of bindable commands.
 
-          // "PopoverMenu.DefaultKey": "Shift+F10",
+          // "PopoverMenu": { "DefaultKey": "Shift+F10" },
 
           // ─── Themes ───────────────────────────────────────────────────────────
           //
@@ -473,71 +548,62 @@ internal sealed class ConfigClet : IViewerCommand
           //           "Yellow", "White", "BrightBlue", "BrightGreen", etc.
           //   RGB:    "#FF8800" (hex), "rgb(255,136,0)"
           //
+          // Themes and Schemes are nested objects keyed by name (Terminal.Gui 2.5+).
           // Example custom theme (uncomment and modify):
 
-          // "Themes": [
-          //   {
-          //     "MyCustomTheme": {
-          //       "Schemes": [
-          //         {
-          //           "Base": {
-          //             "Normal": {
-          //               "Foreground": "White",
-          //               "Background": "DarkBlue"
-          //             },
-          //             "Focus": {
-          //               "Foreground": "BrightYellow",
-          //               "Background": "Blue"
-          //             },
-          //             "HotNormal": {
-          //               "Foreground": "BrightCyan",
-          //               "Background": "DarkBlue"
-          //             },
-          //             "HotFocus": {
-          //               "Foreground": "BrightCyan",
-          //               "Background": "Blue"
-          //             },
-          //             "Disabled": {
-          //               "Foreground": "DarkGray",
-          //               "Background": "DarkBlue"
-          //             }
-          //           }
+          // "Themes": {
+          //   "MyCustomTheme": {
+          //     "Schemes": {
+          //       "Base": {
+          //         "Normal": {
+          //           "Foreground": "White",
+          //           "Background": "DarkBlue"
           //         },
-          //         {
-          //           "Dialog": {
-          //             "Normal": {
-          //               "Foreground": "Black",
-          //               "Background": "LightGray"
-          //             }
-          //           }
+          //         "Focus": {
+          //           "Foreground": "BrightYellow",
+          //           "Background": "Blue"
           //         },
-          //         {
-          //           "Menu": {
-          //             "Normal": {
-          //               "Foreground": "White",
-          //               "Background": "DarkCyan"
-          //             }
-          //           }
+          //         "HotNormal": {
+          //           "Foreground": "BrightCyan",
+          //           "Background": "DarkBlue"
           //         },
-          //         {
-          //           "Error": {
-          //             "Normal": {
-          //               "Foreground": "BrightRed",
-          //               "Background": "Black"
-          //             }
-          //           }
+          //         "HotFocus": {
+          //           "Foreground": "BrightCyan",
+          //           "Background": "Blue"
+          //         },
+          //         "Disabled": {
+          //           "Foreground": "DarkGray",
+          //           "Background": "DarkBlue"
           //         }
-          //       ]
+          //       },
+          //       "Dialog": {
+          //         "Normal": {
+          //           "Foreground": "Black",
+          //           "Background": "LightGray"
+          //         }
+          //       },
+          //       "Menu": {
+          //         "Normal": {
+          //           "Foreground": "White",
+          //           "Background": "DarkCyan"
+          //         }
+          //       },
+          //       "Error": {
+          //         "Normal": {
+          //           "Foreground": "BrightRed",
+          //           "Background": "Black"
+          //         }
+          //       }
           //     }
           //   }
-          // ]
+          // }
 
           // ─── Tracing (for debugging) ──────────────────────────────────────────
           //
           // Enable trace categories to debug Terminal.Gui internals.
           // Useful values: "Lifecycle", "Drawing", "Layout", "Mouse", "Keyboard"
           //
-          // "Trace.EnabledCategories": "Lifecycle"
+          // "Trace": { "EnabledCategories": "Lifecycle" }
 
           // ─── File-Access Allow List ───────────────────────────────────────────
           //
@@ -551,10 +617,12 @@ internal sealed class ConfigClet : IViewerCommand
           // This is the persistent alternative to passing --allow-file each time.
           //
           // Example — allow your projects tree and a shared docs directory:
-          // "FileAccessSettings.AllowedPaths": [
-          //   "/home/user/projects",
-          //   "/home/user/docs"
-          // ]
+          // "FileAccessSettings": {
+          //   "AllowedPaths": [
+          //     "/home/user/projects",
+          //     "/home/user/docs"
+          //   ]
+          // }
         }
         """;
 }

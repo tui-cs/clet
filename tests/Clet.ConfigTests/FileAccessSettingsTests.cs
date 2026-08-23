@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Terminal.Gui.Configuration;
 using Xunit;
 
@@ -172,19 +173,57 @@ public class FileAccessSettingsTests : IDisposable
 }
 
 /// <summary>
-/// Verifies that <see cref="ConfigurationManager"/> discovers
-/// <see cref="FileAccessSettings.AllowedPaths"/> via its assembly scan.
+/// Verifies that <see cref="FileAccessSettings.Load"/> binds
+/// <see cref="FileAccessSettings.AllowedPaths"/> from the nested
+/// <c>"FileAccessSettings"</c> configuration section.
 /// </summary>
-public class FileAccessSettingsCmDiscoveryTests
+public class FileAccessSettingsLoadTests
 {
+    // Claude - Fable 5
     [Fact]
-    public void ConfigurationManager_Discovers_FileAccessSettings_AllowedPaths ()
+    public void Load_BindsAllowedPaths_FromNestedSection ()
     {
-        // Settings is populated by the module initializer before any test code
-        // runs; Enable() is not required to check discovery.
-        Assert.True (
-            ConfigurationManager.Settings!.Keys.Contains ("FileAccessSettings.AllowedPaths"),
-            "ConfigurationManager.Settings should contain 'FileAccessSettings.AllowedPaths'");
+        List<string> savedPaths = [.. FileAccessSettings.AllowedPaths];
+
+        string json = """
+            {
+              "FileAccessSettings": {
+                "AllowedPaths": ["/from/config"]
+              }
+            }
+            """;
+
+        try
+        {
+            IConfigurationBuilder builder = new ConfigurationBuilder ().AddTuiRuntimeConfig (json);
+            FileAccessSettings.Load (builder.Build ().GetSection (FileAccessSettings.SectionName));
+
+            Assert.Contains ("/from/config", FileAccessSettings.AllowedPaths);
+        }
+        finally
+        {
+            FileAccessSettings.AllowedPaths = savedPaths;
+        }
+    }
+
+    // Claude - Fable 5
+    [Fact]
+    public void Load_MissingSection_LeavesValueUnchanged ()
+    {
+        List<string> savedPaths = [.. FileAccessSettings.AllowedPaths];
+        FileAccessSettings.AllowedPaths = ["/existing"];
+
+        try
+        {
+            IConfigurationBuilder builder = new ConfigurationBuilder ().AddTuiRuntimeConfig ("{}");
+            FileAccessSettings.Load (builder.Build ().GetSection (FileAccessSettings.SectionName));
+
+            Assert.Contains ("/existing", FileAccessSettings.AllowedPaths);
+        }
+        finally
+        {
+            FileAccessSettings.AllowedPaths = savedPaths;
+        }
     }
 }
 
@@ -261,17 +300,19 @@ public class FileAccessSettingsAddToConfigTests : IDisposable
     [Fact]
     public void AddToConfig_PreservesExistingKeys ()
     {
-        // Write a config file that already has EditorSettings.
+        // Write a config file that already has an EditorSettings section.
         File.WriteAllText (_configPath, """
             {
-              "EditorSettings.LineNumbers": false
+              "EditorSettings": {
+                "LineNumbers": false
+              }
             }
             """);
 
         FileAccessSettings.AddToConfig ("/extra", _configPath);
 
         string text = File.ReadAllText (_configPath);
-        Assert.Contains ("EditorSettings.LineNumbers", text);
+        Assert.Contains ("LineNumbers", text);
         Assert.Contains ("/extra", text);
     }
 }

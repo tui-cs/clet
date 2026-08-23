@@ -1,13 +1,15 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Configuration;
 using Terminal.Gui.Configuration;
 using Xunit;
 
 namespace Clet.ConfigTests;
 
 /// <summary>
-/// Tests for <see cref="EditorSettings"/> round-tripping through
-/// <see cref="ConfigurationManager"/>.
+/// Tests for <see cref="EditorSettings"/> round-tripping through the nested
+/// <c>"EditorSettings"</c> section of the MEC-based configuration
+/// (<see cref="CletConfiguration"/> / <see cref="TuiConfigurationBuilder"/>).
 /// </summary>
 public class EditorSettingsTests : IDisposable
 {
@@ -25,33 +27,15 @@ public class EditorSettingsTests : IDisposable
         // Save original HOME so we can restore it on cleanup.
         _originalHome = Environment.GetEnvironmentVariable ("HOME");
 
-        // Point HOME at our temp directory (used by Save's CM reload on Linux).
+        // Point HOME at our temp directory (used by Save's config reload on Linux).
         Environment.SetEnvironmentVariable ("HOME", _tempDir);
 
-        // Defensive clean baseline per canonical CM test pattern.
-        if (ConfigurationManager.IsEnabled)
-        {
-            ConfigurationManager.Disable (resetToHardCodedDefaults: true);
-        }
-
-        ConfigurationManager.ThrowOnJsonErrors = true;
-
-        // Ensure CM uses the "clet" app name (matches the clet binary; in tests
-        // the assembly name is different).
-        ConfigurationManager.AppName = "clet";
+        ResetEditorSettingsToDefaults ();
     }
 
     public void Dispose ()
     {
-        // Reset CM so other tests start clean.
-        try
-        {
-            ConfigurationManager.Disable (resetToHardCodedDefaults: true);
-        }
-        catch
-        {
-            // Best-effort cleanup.
-        }
+        ResetEditorSettingsToDefaults ();
 
         // Restore original HOME.
         Environment.SetEnvironmentVariable ("HOME", _originalHome);
@@ -62,32 +46,58 @@ public class EditorSettingsTests : IDisposable
         }
     }
 
-    [Fact]
-    public void ManagedKeys_ContainsAllProperties ()
+    /// <summary>Resets the static <see cref="EditorSettings"/> properties to their hard-coded defaults.</summary>
+    private static void ResetEditorSettingsToDefaults ()
     {
-        Assert.Contains ("EditorSettings.LineNumbers", EditorSettings.ManagedKeys);
-        Assert.Contains ("EditorSettings.FoldIndicators", EditorSettings.ManagedKeys);
-        Assert.Contains ("EditorSettings.WordWrap", EditorSettings.ManagedKeys);
-        Assert.Contains ("EditorSettings.ShowTabs", EditorSettings.ManagedKeys);
-        Assert.Contains ("EditorSettings.Scrollbars", EditorSettings.ManagedKeys);
-        Assert.Contains ("EditorSettings.IndentSize", EditorSettings.ManagedKeys);
-        Assert.Contains ("EditorSettings.ConvertTabsToSpaces", EditorSettings.ManagedKeys);
-        Assert.Contains ("EditorSettings.AutoIndent", EditorSettings.ManagedKeys);
-        Assert.Contains ("EditorSettings.AutoComplete", EditorSettings.ManagedKeys);
-        Assert.Equal (9, EditorSettings.ManagedKeys.Count);
+        EditorSettings.LineNumbers = true;
+        EditorSettings.FoldIndicators = true;
+        EditorSettings.WordWrap = false;
+        EditorSettings.ShowTabs = false;
+        EditorSettings.Scrollbars = true;
+        EditorSettings.IndentSize = 4;
+        EditorSettings.ConvertTabsToSpaces = true;
+        EditorSettings.AutoIndent = false;
+        EditorSettings.AutoComplete = false;
+    }
+
+    /// <summary>
+    /// Builds a bare MEC configuration from inline JSON via Terminal.Gui's
+    /// runtime-config source (validates the nested 2.5+ shape) and returns
+    /// the <c>"EditorSettings"</c> section.
+    /// </summary>
+    private static IConfiguration EditorSection (string json)
+    {
+        IConfigurationBuilder builder = new ConfigurationBuilder ().AddTuiRuntimeConfig (json);
+
+        return builder.Build ().GetSection (EditorSettings.SectionName);
     }
 
     [Fact]
-    public void ConfigurationManager_Discovers_EditorSettings ()
+    public void ManagedKeys_ContainsAllProperties ()
     {
-        ConfigurationManager.Enable (ConfigLocations.None);
+        Assert.Contains ("LineNumbers", EditorSettings.ManagedKeys);
+        Assert.Contains ("FoldIndicators", EditorSettings.ManagedKeys);
+        Assert.Contains ("WordWrap", EditorSettings.ManagedKeys);
+        Assert.Contains ("ShowTabs", EditorSettings.ManagedKeys);
+        Assert.Contains ("Scrollbars", EditorSettings.ManagedKeys);
+        Assert.Contains ("IndentSize", EditorSettings.ManagedKeys);
+        Assert.Contains ("ConvertTabsToSpaces", EditorSettings.ManagedKeys);
+        Assert.Contains ("AutoIndent", EditorSettings.ManagedKeys);
+        Assert.Contains ("AutoComplete", EditorSettings.ManagedKeys);
+        Assert.Equal (9, EditorSettings.ManagedKeys.Count);
+    }
 
-        foreach (string key in EditorSettings.ManagedKeys)
-        {
-            Assert.True (
-                ConfigurationManager.Settings!.Keys.Contains (key),
-                $"ConfigurationManager.Settings should contain '{key}'");
-        }
+    // Claude - Fable 5
+    [Fact]
+    public void Load_EmptySection_LeavesValuesUnchanged ()
+    {
+        EditorSettings.LineNumbers = false;
+        EditorSettings.IndentSize = 7;
+
+        EditorSettings.Load (EditorSection ("{}"));
+
+        Assert.False (EditorSettings.LineNumbers);
+        Assert.Equal (7, EditorSettings.IndentSize);
     }
 
     [Fact]
@@ -110,29 +120,18 @@ public class EditorSettingsTests : IDisposable
         // Act
         EditorSettings.Save (_configPath);
 
-        // Assert — parse the written file and check values
-        string json = File.ReadAllText (_configPath);
+        // Assert — parse the written file and check the nested section values
+        JsonObject section = ReadEditorSection (_configPath);
 
-        var root = JsonNode.Parse (
-            json,
-            documentOptions: new JsonDocumentOptions
-            {
-                CommentHandling = JsonCommentHandling.Skip,
-                AllowTrailingCommas = true,
-            });
-
-        Assert.NotNull (root);
-        JsonObject obj = Assert.IsType<JsonObject> (root);
-
-        Assert.False ((bool)obj["EditorSettings.LineNumbers"]!);
-        Assert.False ((bool)obj["EditorSettings.FoldIndicators"]!);
-        Assert.True ((bool)obj["EditorSettings.WordWrap"]!);
-        Assert.True ((bool)obj["EditorSettings.ShowTabs"]!);
-        Assert.False ((bool)obj["EditorSettings.Scrollbars"]!);
-        Assert.Equal (2, (int)obj["EditorSettings.IndentSize"]!);
-        Assert.False ((bool)obj["EditorSettings.ConvertTabsToSpaces"]!);
-        Assert.True ((bool)obj["EditorSettings.AutoIndent"]!);
-        Assert.True ((bool)obj["EditorSettings.AutoComplete"]!);
+        Assert.False ((bool)section["LineNumbers"]!);
+        Assert.False ((bool)section["FoldIndicators"]!);
+        Assert.True ((bool)section["WordWrap"]!);
+        Assert.True ((bool)section["ShowTabs"]!);
+        Assert.False ((bool)section["Scrollbars"]!);
+        Assert.Equal (2, (int)section["IndentSize"]!);
+        Assert.False ((bool)section["ConvertTabsToSpaces"]!);
+        Assert.True ((bool)section["AutoIndent"]!);
+        Assert.True ((bool)section["AutoComplete"]!);
     }
 
     [Fact]
@@ -154,22 +153,11 @@ public class EditorSettingsTests : IDisposable
         EditorSettings.Save (_configPath);
 
         // Assert
-        string json = File.ReadAllText (_configPath);
-
-        var root = JsonNode.Parse (
-            json,
-            documentOptions: new JsonDocumentOptions
-            {
-                CommentHandling = JsonCommentHandling.Skip,
-                AllowTrailingCommas = true,
-            });
-
-        Assert.NotNull (root);
-        JsonObject obj = Assert.IsType<JsonObject> (root);
+        JsonObject obj = ReadRoot (_configPath);
 
         Assert.Equal ("https://example.com/schema.json", (string)obj["$schema"]!);
         Assert.Equal ("Dark", (string)obj["Theme"]!);
-        Assert.True ((bool)obj["EditorSettings.LineNumbers"]!);
+        Assert.True ((bool)obj[EditorSettings.SectionName]!["LineNumbers"]!);
     }
 
     [Fact]
@@ -185,7 +173,7 @@ public class EditorSettingsTests : IDisposable
               // Theme configuration
               // "Theme": "Anders",
 
-              "Key.Separator": "+"
+              "Key": { "Separator": "+" }
             }
             """;
         File.WriteAllText (_configPath, jsonc);
@@ -202,10 +190,11 @@ public class EditorSettingsTests : IDisposable
         Assert.Contains ("// This is a comment", result);
         Assert.Contains ("// Theme configuration", result);
         Assert.Contains ("// \"Theme\": \"Anders\",", result);
-        Assert.Contains ("\"Key.Separator\": \"+\"", result);
+        Assert.Contains ("\"Key\": { \"Separator\": \"+\" }", result);
         Assert.Contains ("\"$schema\": \"https://example.com/schema.json\"", result);
-        Assert.Contains ("\"EditorSettings.LineNumbers\": false", result);
-        Assert.Contains ("\"EditorSettings.IndentSize\": 2", result);
+        Assert.Contains ("\"LineNumbers\": false", result);
+        Assert.Contains ("\"IndentSize\": 2", result);
+        Assert.False ((bool)ReadEditorSection (_configPath)["LineNumbers"]!);
     }
 
     [Fact]
@@ -223,22 +212,23 @@ public class EditorSettingsTests : IDisposable
         string result = File.ReadAllText (_configPath);
 
         Assert.Contains ("clet configuration", result);
-        Assert.Contains ("Terminal.Gui's ConfigurationManager", result);
         Assert.Contains ("$schema", result);
-        Assert.Contains ("\"EditorSettings.LineNumbers\": false", result);
+        Assert.False ((bool)ReadEditorSection (_configPath)["LineNumbers"]!);
     }
 
     [Fact]
     public void Save_UpdatesExistingEditorSettingsKeys ()
     {
-        // Arrange — write a file that already has EditorSettings keys
+        // Arrange — write a file that already has an EditorSettings section
         File.WriteAllText (
             _configPath,
             """
             {
               // comments
-              "EditorSettings.LineNumbers": true,
-              "EditorSettings.IndentSize": 4
+              "EditorSettings": {
+                "LineNumbers": true,
+                "IndentSize": 4
+              }
             }
             """);
 
@@ -252,24 +242,27 @@ public class EditorSettingsTests : IDisposable
         string result = File.ReadAllText (_configPath);
 
         Assert.Contains ("// comments", result);
-        Assert.Contains ("\"EditorSettings.LineNumbers\": false", result);
-        Assert.Contains ("\"EditorSettings.IndentSize\": 8", result);
+        Assert.Contains ("\"LineNumbers\": false", result);
+        Assert.Contains ("\"IndentSize\": 8", result);
 
-        // Verify no duplicate keys
-        Assert.Equal (1, CountOccurrences (result, "EditorSettings.LineNumbers"));
-        Assert.Equal (1, CountOccurrences (result, "EditorSettings.IndentSize"));
+        // Verify no duplicate keys or duplicate sections
+        Assert.Equal (1, CountOccurrences (result, "\"LineNumbers\""));
+        Assert.Equal (1, CountOccurrences (result, "\"IndentSize\""));
+        Assert.Equal (1, CountOccurrences (result, "\"EditorSettings\""));
     }
 
     [Fact]
     public void Save_DoesNotModifyCommentedOutKeys ()
     {
-        // Arrange — file has a commented-out EditorSettings key
+        // Arrange — the section has a commented-out key
         File.WriteAllText (
             _configPath,
             """
             {
-              // "EditorSettings.LineNumbers": true,
-              "EditorSettings.IndentSize": 4
+              "EditorSettings": {
+                // "LineNumbers": true,
+                "IndentSize": 4
+              }
             }
             """);
 
@@ -282,38 +275,34 @@ public class EditorSettingsTests : IDisposable
         // Assert — commented-out key is untouched, active key is updated
         string result = File.ReadAllText (_configPath);
 
-        Assert.Contains ("// \"EditorSettings.LineNumbers\": true,", result);
-        Assert.Contains ("\"EditorSettings.IndentSize\": 2", result);
-        Assert.Contains ("\"EditorSettings.LineNumbers\": false", result);
+        Assert.Contains ("// \"LineNumbers\": true,", result);
+        Assert.Contains ("\"IndentSize\": 2", result);
+        Assert.Contains ("\"LineNumbers\": false", result);
     }
 
     [Fact]
-    public void RoundTrip_LoadApply_RestoresPersistedValues ()
+    public void RoundTrip_Load_RestoresPersistedValues ()
     {
-        // Arrange — JSON with non-default values
+        // Arrange — nested JSON with non-default values
         string json = """
             {
-              "EditorSettings.LineNumbers": false,
-              "EditorSettings.IndentSize": 8,
-              "EditorSettings.WordWrap": true,
-              "EditorSettings.AutoIndent": true,
-              "EditorSettings.Scrollbars": false,
-              "EditorSettings.AutoComplete": true
+              "EditorSettings": {
+                "LineNumbers": false,
+                "IndentSize": 8,
+                "WordWrap": true,
+                "AutoIndent": true,
+                "Scrollbars": false,
+                "AutoComplete": true
+              }
             }
             """;
 
         // Reset to defaults first
-        EditorSettings.LineNumbers = true;
-        EditorSettings.IndentSize = 4;
-        EditorSettings.WordWrap = false;
-        EditorSettings.AutoIndent = false;
-        EditorSettings.Scrollbars = true;
-        EditorSettings.AutoComplete = false;
+        ResetEditorSettingsToDefaults ();
 
-        // Act — load via RuntimeConfig (cross-platform; avoids ~ resolution
+        // Act — bind from inline JSON (cross-platform; avoids ~ resolution
         // issues on Windows where GetFolderPath ignores env var changes).
-        ConfigurationManager.RuntimeConfig = json;
-        ConfigurationManager.Enable (ConfigLocations.Runtime);
+        EditorSettings.Load (EditorSection (json));
 
         // Assert
         Assert.False (EditorSettings.LineNumbers);
@@ -337,15 +326,11 @@ public class EditorSettingsTests : IDisposable
         EditorSettings.Save (_configPath);
 
         // Reset in-memory to defaults
-        EditorSettings.LineNumbers = true;
-        EditorSettings.FoldIndicators = true;
-        EditorSettings.IndentSize = 4;
-        EditorSettings.ConvertTabsToSpaces = true;
+        ResetEditorSettingsToDefaults ();
 
-        // Act — load saved file via RuntimeConfig (cross-platform).
+        // Act — load the saved file via inline JSON (cross-platform).
         string savedJson = File.ReadAllText (_configPath);
-        ConfigurationManager.RuntimeConfig = savedJson;
-        ConfigurationManager.Enable (ConfigLocations.Runtime);
+        EditorSettings.Load (EditorSection (savedJson));
 
         // Assert — values should match what we saved
         Assert.False (EditorSettings.LineNumbers);
@@ -368,40 +353,11 @@ public class EditorSettingsTests : IDisposable
         // Assert — file was created and contains the setting
         Assert.True (File.Exists (_configPath));
 
-        string json = File.ReadAllText (_configPath);
-
-        var root = JsonNode.Parse (
-            json,
-            documentOptions: new JsonDocumentOptions
-            {
-                CommentHandling = JsonCommentHandling.Skip,
-                AllowTrailingCommas = true,
-            });
-
-        Assert.NotNull (root);
-        Assert.Equal (6, (int)root["EditorSettings.IndentSize"]!);
+        Assert.Equal (6, (int)ReadEditorSection (_configPath)["IndentSize"]!);
     }
 
     [Fact]
-    public void Defaults_AreCorrect ()
-    {
-        ConfigurationManager.Enable (ConfigLocations.None);
-        ConfigurationManager.Load (ConfigLocations.HardCoded);
-        ConfigurationManager.Apply ();
-
-        Assert.True (EditorSettings.LineNumbers);
-        Assert.True (EditorSettings.FoldIndicators);
-        Assert.False (EditorSettings.WordWrap);
-        Assert.False (EditorSettings.ShowTabs);
-        Assert.True (EditorSettings.Scrollbars);
-        Assert.Equal (4, EditorSettings.IndentSize);
-        Assert.True (EditorSettings.ConvertTabsToSpaces);
-        Assert.False (EditorSettings.AutoIndent);
-        Assert.False (EditorSettings.AutoComplete);
-    }
-
-    [Fact]
-    public void AllowedPaths_RoundTrip_CM_LoadsArrayFromRuntimeConfig ()
+    public void AllowedPaths_Load_BindsArrayFromNestedSection ()
     {
         // Arrange — reset in-memory value to empty
         List<string> savedPaths = [.. FileAccessSettings.AllowedPaths];
@@ -409,17 +365,19 @@ public class EditorSettingsTests : IDisposable
 
         string json = """
             {
-              "FileAccessSettings.AllowedPaths": ["/allowed/path1", "/allowed/path2"]
+              "FileAccessSettings": {
+                "AllowedPaths": ["/allowed/path1", "/allowed/path2"]
+              }
             }
             """;
 
         try
         {
-            // Act — load via RuntimeConfig
-            ConfigurationManager.RuntimeConfig = json;
-            ConfigurationManager.Enable (ConfigLocations.Runtime);
+            // Act — bind from inline JSON
+            IConfigurationBuilder builder = new ConfigurationBuilder ().AddTuiRuntimeConfig (json);
+            FileAccessSettings.Load (builder.Build ().GetSection (FileAccessSettings.SectionName));
 
-            // Assert — CM must have applied the array
+            // Assert — the array was applied
             Assert.NotEmpty (FileAccessSettings.AllowedPaths);
             Assert.Contains ("/allowed/path1", FileAccessSettings.AllowedPaths);
             Assert.Contains ("/allowed/path2", FileAccessSettings.AllowedPaths);
@@ -428,6 +386,31 @@ public class EditorSettingsTests : IDisposable
         {
             FileAccessSettings.AllowedPaths = savedPaths;
         }
+    }
+
+    /// <summary>Parses the JSONC config file and returns the root object.</summary>
+    private static JsonObject ReadRoot (string path)
+    {
+        var root = JsonNode.Parse (
+            File.ReadAllText (path),
+            documentOptions: new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true,
+            });
+
+        Assert.NotNull (root);
+
+        return Assert.IsType<JsonObject> (root);
+    }
+
+    /// <summary>Parses the JSONC config file and returns the nested <c>"EditorSettings"</c> object.</summary>
+    private static JsonObject ReadEditorSection (string path)
+    {
+        JsonNode? section = ReadRoot (path)[EditorSettings.SectionName];
+        Assert.NotNull (section);
+
+        return Assert.IsType<JsonObject> (section);
     }
 
     /// <summary>Counts the number of occurrences of <paramref name="substring"/> in <paramref name="text"/>.</summary>

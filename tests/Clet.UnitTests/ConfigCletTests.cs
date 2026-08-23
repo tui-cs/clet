@@ -8,7 +8,7 @@ public class ConfigCletTests
     [Fact]
     public void DefaultConfigContent_IsValidJsonc ()
     {
-        // Terminal.Gui's ConfigurationManager uses these options
+        // Terminal.Gui's configuration loader uses these options
         JsonDocumentOptions options = new ()
         {
             CommentHandling = JsonCommentHandling.Skip,
@@ -22,10 +22,10 @@ public class ConfigCletTests
 
     [Theory]
     [InlineData ("// \"Theme\": \"Anders\",", "\"Theme\": \"Anders\",")]
-    [InlineData ("// \"Key.Separator\": \"+\",", "\"Key.Separator\": \"+\",")]
-    [InlineData ("// \"Driver.Force16Colors\": false,", "\"Driver.Force16Colors\": false,")]
-    [InlineData ("// \"Application.IsMouseDisabled\": false,", "\"Application.IsMouseDisabled\": false,")]
-    [InlineData ("// \"PopoverMenu.DefaultKey\": \"Shift+F10\",", "\"PopoverMenu.DefaultKey\": \"Shift+F10\",")]
+    [InlineData ("// \"Key\": { \"Separator\": \"+\" },", "\"Key\": { \"Separator\": \"+\" },")]
+    [InlineData ("// \"Driver\": { \"Force16Colors\": false },", "\"Driver\": { \"Force16Colors\": false },")]
+    [InlineData ("// \"Application\": { \"IsMouseDisabled\": false },", "\"Application\": { \"IsMouseDisabled\": false },")]
+    [InlineData ("// \"PopoverMenu\": { \"DefaultKey\": \"Shift+F10\" },", "\"PopoverMenu\": { \"DefaultKey\": \"Shift+F10\" },")]
     public void DefaultConfigContent_UncommentSingleSetting_IsValidJsonc (string commented, string uncommented)
     {
         string modified = ConfigClet.DefaultConfigContent.Replace (commented, uncommented);

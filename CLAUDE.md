@@ -62,7 +62,7 @@ Projects in this repo:
 
 - **`src/Clet/`** — The CLI executable (net10.0). Depends on `Terminal.Gui.Cli` (preview NuGet, version pinned in `Directory.Build.props`) which provides the CLI hosting infrastructure (`CliHost`, `CommandRegistry`, `ResultWriter`, `ExitCodes`, `JsonEnvelope`, etc.). clet is a thin consumer: it registers its commands via `BuiltInCommands.RegisterAll` and lets the package handle parsing, dispatch, and output formatting. Auto-discovery via a source generator was explored and dropped.
 - **`tests/Clet.UnitTests/`** — Command implementations, file access policy, content resolution, and BuiltInCommands registration tests.
-- **`tests/Clet.ConfigTests/`** — Non-parallel assembly for all `ConfigurationManager`-touching tests (EditorSettings, FileAccessSettings CM round-trips). `xunit.runner.json` disables both assembly and collection parallelization. **Never enable CM in the other parallel test projects.**
+- **`tests/Clet.ConfigTests/`** — Non-parallel assembly for all configuration-touching tests (EditorSettings, FileAccessSettings round-trips through `CletConfiguration`/`TuiConfigurationBuilder`). `xunit.runner.json` disables both assembly and collection parallelization. **Never mutate the static settings facades or reload configuration in the other parallel test projects.**
 - **`tests/Clet.IntegrationTests/`** — In-process tests that init Terminal.Gui (`Application.Create()`, `app.Init("ansi")`).
 - **`tests/Clet.SmokeTests/`** — Process-level smoke tests (`Process.Start` against the built `Clet.dll`). The keystroke-driven cases land at v0.3 with TUIcast — see `specs/decisions.md` D-007.
 

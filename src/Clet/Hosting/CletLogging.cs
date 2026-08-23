@@ -18,7 +18,7 @@ internal static class CletLogging
 
     /// <summary>
     /// Initializes file-based logging and TG tracing. Call once at startup, before
-    /// <see cref="Terminal.Gui.Configuration.ConfigurationManager.Enable"/>.
+    /// <see cref="CletConfiguration.Apply"/>.
     /// </summary>
     [Conditional ("DEBUG")]
     internal static void Initialize ()
