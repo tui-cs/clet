@@ -47,7 +47,7 @@ internal sealed class ConfigClet : IViewerCommand
         // ConfigureAwait (false): resuming on an ambient SynchronizationContext and
         // then calling IApplication.RunAsync deadlocks in Terminal.Gui 2.5.0-preview
         // (the run loop never completes; observed under the xunit sync context).
-        // Upstream issue tracked with tui-cs/Terminal.Gui#5416 validation.
+        // Upstream bug: tui-cs/Terminal.Gui#5636 (found validating tui-cs/Terminal.Gui#5416).
         string configText = await File.ReadAllTextAsync (configPath, cancellationToken).ConfigureAwait (false);
 
         // Check for pre-existing config errors to show on launch
