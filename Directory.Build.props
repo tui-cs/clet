@@ -13,8 +13,7 @@
     <Copyright>Copyright (c) tui-cs and contributors</Copyright>
 
     <!-- Pinned Terminal.Gui version. CI / release workflows can override via -p:TerminalGuiVersion=<x>. -->
-    <!-- TEMP: public 2.5.0-develop.55 (TG #5416 / #5630 workstream 4). Swap to stable 2.5.x before merge. -->
-    <TerminalGuiVersion Condition="'$(TerminalGuiVersion)' == ''">2.5.0-develop.55</TerminalGuiVersion>
+    <TerminalGuiVersion Condition="'$(TerminalGuiVersion)' == ''">2.5.0-beta.1</TerminalGuiVersion>
     <!-- Pinned Terminal.Gui.Editor version. CI / release workflows can override via -p:TerminalGuiEditorVersion=<x>. -->
     <TerminalGuiEditorVersion Condition="'$(TerminalGuiEditorVersion)' == ''">2.5.1</TerminalGuiEditorVersion>
     <!-- Pinned Terminal.Gui.Cli version. CI / release workflows can override via -p:TerminalGuiCliVersion=<x>. -->
