@@ -67,8 +67,3 @@ dist/
 
 # VS-generated local launch profiles (not shared)
 **/Properties/launchSettings.json
-
-# TEMP: vendored Terminal.Gui preview packages (tui-cs/Terminal.Gui PR #5416).
-# Remove along with local_packages/ once 2.5.x ships on nuget.org.
-!local_packages/*.nupkg
-!local_packages/*.snupkg
