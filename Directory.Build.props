@@ -13,7 +13,7 @@
     <Copyright>Copyright (c) tui-cs and contributors</Copyright>
 
     <!-- Pinned Terminal.Gui version. CI / release workflows can override via -p:TerminalGuiVersion=<x>. -->
-    <TerminalGuiVersion Condition="'$(TerminalGuiVersion)' == ''">2.5.0-beta.1</TerminalGuiVersion>
+    <TerminalGuiVersion Condition="'$(TerminalGuiVersion)' == ''">2.6.0</TerminalGuiVersion>
     <!-- Pinned Terminal.Gui.Editor version. CI / release workflows can override via -p:TerminalGuiEditorVersion=<x>. -->
     <TerminalGuiEditorVersion Condition="'$(TerminalGuiEditorVersion)' == ''">2.5.1</TerminalGuiEditorVersion>
     <!-- Pinned Terminal.Gui.Cli version. CI / release workflows can override via -p:TerminalGuiCliVersion=<x>. -->

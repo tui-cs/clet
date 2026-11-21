@@ -40,7 +40,7 @@
       already brings in via its own dependency. Remove once upstream TG
       fixes the package's asset flow.
     -->
-        <PackageReference Include="TextMateSharp" Version="2.0.4" />
+        <PackageReference Include="TextMateSharp" Version="2.0.5" />
     </ItemGroup>
 
     <ItemGroup>
